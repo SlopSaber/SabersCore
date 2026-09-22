@@ -8,7 +8,7 @@
     <PluginName>SabersCore</PluginName>
     <Authors>qqrz997</Authors>
     <Version>1.1.0</Version>
-    <GameVersion>1.45.0</GameVersion>
+    <GameVersion>1.45.1</GameVersion>
     <Description>Provides a way for modders to load custom saber assets and manage them from a centralized location.</Description>
     <!--<PluginIcon></PluginIcon>-->
     <!--<ProjectSource></ProjectSource>-->
