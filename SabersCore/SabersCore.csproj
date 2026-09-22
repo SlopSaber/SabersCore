@@ -59,11 +59,12 @@
             <HintPath>$(BeatSaberDir)\Plugins\BSML.dll</HintPath>
             <Private>false</Private>
         </Reference>
+        <Reference Include="Colors" HintPath="$(BeatSaberDir)\Beat Saber_Data\Managed\Colors.dll" Private="false" />
         <Reference Include="DataModels">
           <Private>false</Private>
           <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\DataModels.dll</HintPath>
         </Reference>
-        <Reference Include="GameplayCore">
+        <Reference Include="GameplayCore" Publicize="true">
             <Private>false</Private>
             <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\GameplayCore.dll</HintPath>
         </Reference>
