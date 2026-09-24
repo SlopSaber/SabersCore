@@ -23,7 +23,7 @@ internal class CustomSaber : ISaber
     public CustomSaber(GameObject gameObject)
     {
         GameObject = gameObject;
-        GameObject.SetLayerRecursively(12);
+        GameObject.layer = 12;
         EventManager = gameObject.TryGetComponentOrAdd<EventManager>();
         // colorableMaterials = CustomTrailUtils.GetColorableSaberMaterials(gameObject).ToArray();
         allColorers = gameObject.GetComponentsInChildren<MaterialColorer>(true) ?? [];
