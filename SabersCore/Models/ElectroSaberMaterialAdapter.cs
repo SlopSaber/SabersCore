@@ -22,6 +22,11 @@ internal static class ElectroSaberMaterialAdapter
             Plugin.Log.Warn("Electro Saber: Beat Saber Handle material is unavailable");
             return [];
         }
+        var gameBlade = Resources.FindObjectsOfTypeAll<Material>().FirstOrDefault(material =>
+            material != null && material.name == "SaberBlade" &&
+            material.shader != null && material.shader.name == "Custom/SaberBlade");
+        if (gameBlade == null)
+            Plugin.Log.Warn("Electro Saber: Beat Saber SaberBlade material is unavailable");
 
         var replacements = new Dictionary<Material, Material>();
         var convertedRenderers = 0;
@@ -35,7 +40,7 @@ internal static class ElectroSaberMaterialAdapter
                 if (!IsElectroMaterial(source)) continue;
                 if (!replacements.TryGetValue(source, out var replacement))
                 {
-                    replacement = CreateReplacement(gameHandle, source);
+                    replacement = CreateReplacement(gameHandle, gameBlade, source);
                     replacements.Add(source, replacement);
                 }
                 materials[i] = replacement;
@@ -48,12 +53,16 @@ internal static class ElectroSaberMaterialAdapter
             if (colorer != null)
             {
                 colorer.propertyName = "_Color";
-                colorer.multiplierColor = new Color(0.35f, 0.35f, 0.35f, 1f);
+                colorer.multiplierColor = materials.Any(material =>
+                    material != null && material.shader != null && material.shader.name == "Custom/SaberBlade")
+                    ? Color.white
+                    : new Color(0.35f, 0.35f, 0.35f, 1f);
             }
             convertedRenderers++;
         }
 
-        Plugin.Log.Notice($"Electro Saber: converted {convertedRenderers} mesh renderers to game Handle shader ({replacements.Count} materials)");
+        Plugin.Log.Notice($"Electro Saber: converted {convertedRenderers} mesh renderers ({replacements.Count} materials, " +
+                          $"{replacements.Values.Count(material => material.shader.name == "Custom/SaberBlade")} native blades)");
         return replacements.Values.ToArray();
     }
 
@@ -63,8 +72,17 @@ internal static class ElectroSaberMaterialAdapter
         return name == "ElectroSaber/Body" || name == "ElectroSaber/Glow" || name == "ElectroSaber/Trail";
     }
 
-    private static Material CreateReplacement(Material gameHandle, Material source)
+    private static Material CreateReplacement(Material gameHandle, Material? gameBlade, Material source)
     {
+        if (gameBlade != null && source.name.StartsWith("Glow_", StringComparison.Ordinal))
+        {
+            var blade = new Material(gameBlade) { name = source.name + " (game blade shader)" };
+            blade.SetColor("_Color", Color.white);
+            blade.SetColor("_AddColor", new Color(0.2f, 0.2f, 0.2f, 0f));
+            blade.SetFloat("_Brightness", 1.25f);
+            return blade;
+        }
+
         var replacement = new Material(gameHandle) { name = source.name + " (game shader)" };
         var sourceColor = source.HasProperty("_Color") ? source.GetColor("_Color") : Color.gray;
         var tint = new Color(
