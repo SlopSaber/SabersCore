@@ -40,6 +40,8 @@ internal class CustomSaber : ISaber
             colorer.materialPropertyBlock ??= new();
             colorer.meshRenderer.GetPropertyBlock(colorer.materialPropertyBlock);
             colorer.materialPropertyBlock.SetColor(colorer.propertyName, color * colorer.multiplierColor);
+            if (ownedMaterials.Length > 0 && colorer.propertyName == "_Color")
+                colorer.materialPropertyBlock.SetColor("_RimLightColor", color);
             colorer.meshRenderer.SetPropertyBlock(colorer.materialPropertyBlock);
         }
     }
@@ -66,6 +68,8 @@ internal class CustomSaber : ISaber
                 || (saberType == SaberType.SaberB && colorer.colorSchemeType == ColorSchemeType.RightSaber))
             {
                 colorer.materialPropertyBlock.SetColor(colorer.propertyName, color * colorer.multiplierColor);
+                if (ownedMaterials.Length > 0 && colorer.propertyName == "_Color")
+                    colorer.materialPropertyBlock.SetColor("_RimLightColor", color);
                 colorer.meshRenderer.SetPropertyBlock(colorer.materialPropertyBlock);
             }
         }

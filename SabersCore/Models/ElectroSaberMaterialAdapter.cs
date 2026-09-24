@@ -97,23 +97,40 @@ internal static class ElectroSaberMaterialAdapter
             replacement.SetColor("_TintColor", goldTint);
         }
 
-        var metalHardware = goldHardware ||
+        var usesSaberColor = source.HasProperty("_UseSaberColor") && source.GetFloat("_UseSaberColor") > 0.5f;
+        var metalHardware = !usesSaberColor && (goldHardware ||
             source.name.IndexOf("MatCap", StringComparison.OrdinalIgnoreCase) >= 0 ||
-            source.name.StartsWith("Material", StringComparison.Ordinal);
+            source.name.StartsWith("Material", StringComparison.Ordinal));
         if (metalHardware)
         {
             replacement.SetColor("_RimLightColor", goldHardware
                 ? new Color(0.85f, 0.65f, 0.25f, 1f)
-                : new Color(0.55f, 0.55f, 0.55f, 1f));
+                : new Color(0.38f, 0.38f, 0.38f, 1f));
             replacement.SetFloat("_RimLight", 1f);
-            replacement.SetFloat("_RimLightIntensity", goldHardware ? 0.7f : 0.6f);
-            replacement.SetFloat("_RimLightBloomIntensity", 1f);
+            replacement.SetFloat("_RimLightIntensity", goldHardware ? 0.7f : 0.45f);
+            replacement.SetFloat("_RimLightBloomIntensity", goldHardware ? 1f : 0.65f);
             replacement.EnableKeyword("_RIMLIGHT_LERP");
             replacement.SetFloat("_ReflectionIntensity", 0.75f);
             replacement.SetFloat("_ReflectionProbeIntensity", 0.75f);
             replacement.SetFloat("_SpecularIntensity", 0.75f);
             replacement.SetFloat("_Smoothness", 0.75f);
             replacement.SetFloat("_Glossiness", 0.5f);
+        }
+        if (usesSaberColor)
+        {
+            var glow = source.HasProperty("_Glow") ? source.GetFloat("_Glow") : 1f;
+            replacement.SetFloat("_RimLight", 1f);
+            replacement.SetFloat("_RimLightIntensity", Mathf.Clamp(0.5f + glow * 0.5f, 0.6f, 1f));
+            replacement.SetFloat("_RimLightBloomIntensity", Mathf.Clamp(glow * 1.5f, 0.8f, 1.6f));
+            replacement.EnableKeyword("_RIMLIGHT_LERP");
+            if (source.name.StartsWith("DeepRed", StringComparison.Ordinal) ||
+                source.name.StartsWith("DeepBlue", StringComparison.Ordinal))
+            {
+                replacement.SetFloat("_ReflectionIntensity", 0.85f);
+                replacement.SetFloat("_ReflectionProbeIntensity", 0.85f);
+                replacement.SetFloat("_SpecularIntensity", 0.85f);
+                replacement.SetFloat("_Smoothness", 0.75f);
+            }
         }
 
         if (!goldHardware && source.HasProperty("_MainTex") && source.GetTexture("_MainTex") is { } texture)
