@@ -15,7 +15,6 @@ internal class CustomSaber : ISaber
     private readonly MaterialColorer[] allColorers;
     private readonly MaterialColorer[] saberColors;
     private readonly MaterialColorer[] boostColors;
-    private bool loggedElectroMaterials;
 
     public GameObject GameObject { get; }
     public EventManager EventManager { get; }
@@ -23,7 +22,7 @@ internal class CustomSaber : ISaber
     public CustomSaber(GameObject gameObject)
     {
         GameObject = gameObject;
-        GameObject.layer = 12;
+        GameObject.SetLayerRecursively(12);
         EventManager = gameObject.TryGetComponentOrAdd<EventManager>();
         // colorableMaterials = CustomTrailUtils.GetColorableSaberMaterials(gameObject).ToArray();
         allColorers = gameObject.GetComponentsInChildren<MaterialColorer>(true) ?? [];
@@ -40,34 +39,6 @@ internal class CustomSaber : ISaber
             colorer.meshRenderer.GetPropertyBlock(colorer.materialPropertyBlock);
             colorer.materialPropertyBlock.SetColor(colorer.propertyName, color * colorer.multiplierColor);
             colorer.meshRenderer.SetPropertyBlock(colorer.materialPropertyBlock);
-        }
-        if (!loggedElectroMaterials)
-        {
-            LogElectroMaterials();
-            loggedElectroMaterials = true;
-        }
-    }
-
-    private void LogElectroMaterials()
-    {
-        var propertyBlock = new MaterialPropertyBlock();
-        foreach (var renderer in GameObject.GetComponentsInChildren<MeshRenderer>(true))
-        {
-            renderer.GetPropertyBlock(propertyBlock);
-            foreach (var material in renderer.sharedMaterials)
-            {
-                if (material == null || material.shader == null ||
-                    !material.shader.name.StartsWith("ElectroSaber/", StringComparison.Ordinal))
-                    continue;
-                var shader = material.shader;
-                var baseColor = material.HasProperty("_Color") ? material.GetColor("_Color") : Color.clear;
-                var glow = material.HasProperty("_Glow") ? material.GetFloat("_Glow") : -1f;
-                var colorable = material.HasProperty("_UseSaberColor") ? material.GetFloat("_UseSaberColor") : -1f;
-                Plugin.Log.Notice($"Electro material {GameObject.name}/{renderer.name}: " +
-                    $"layer={renderer.gameObject.layer}, shader={shader.name}, supported={shader.isSupported}, " +
-                    $"material={material.name}, color={baseColor}, glow={glow}, " +
-                    $"colorable={colorable}, saberColorBlock={propertyBlock.GetColor("_SaberColor")}");
-            }
         }
     }
 
