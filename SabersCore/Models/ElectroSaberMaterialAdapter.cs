@@ -95,12 +95,25 @@ internal static class ElectroSaberMaterialAdapter
                 1f);
             replacement.SetColor("_Color", goldTint);
             replacement.SetColor("_TintColor", goldTint);
-            replacement.SetFloat("_EnableRimLight", 0f);
-            replacement.SetFloat("_ReflectionIntensity", 0f);
-            replacement.SetFloat("_ReflectionProbeIntensity", 0f);
-            replacement.SetFloat("_SpecularIntensity", 0f);
-            replacement.SetFloat("_Smoothness", 0.3f);
-            replacement.SetFloat("_Glossiness", 0.3f);
+        }
+
+        var metalHardware = goldHardware ||
+            source.name.IndexOf("MatCap", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            source.name.StartsWith("Material", StringComparison.Ordinal);
+        if (metalHardware)
+        {
+            replacement.SetColor("_RimLightColor", goldHardware
+                ? new Color(0.85f, 0.65f, 0.25f, 1f)
+                : new Color(0.55f, 0.55f, 0.55f, 1f));
+            replacement.SetFloat("_RimLight", 1f);
+            replacement.SetFloat("_RimLightIntensity", goldHardware ? 0.7f : 0.6f);
+            replacement.SetFloat("_RimLightBloomIntensity", 1f);
+            replacement.EnableKeyword("_RIMLIGHT_LERP");
+            replacement.SetFloat("_ReflectionIntensity", 0.75f);
+            replacement.SetFloat("_ReflectionProbeIntensity", 0.75f);
+            replacement.SetFloat("_SpecularIntensity", 0.75f);
+            replacement.SetFloat("_Smoothness", 0.75f);
+            replacement.SetFloat("_Glossiness", 0.5f);
         }
 
         if (!goldHardware && source.HasProperty("_MainTex") && source.GetTexture("_MainTex") is { } texture)
