@@ -76,6 +76,12 @@ internal static class ElectroSaberMaterialAdapter
         replacement.SetColor("_TintColor", tint);
         replacement.SetColor("_AddColor", Color.clear);
         replacement.SetColor("_EmissionColor", Color.black);
+        replacement.SetColor("_RimLightColor", Color.black);
+        replacement.SetFloat("_RimLight", 0f);
+        replacement.SetFloat("_RimLightIntensity", 0f);
+        replacement.SetFloat("_RimLightBloomIntensity", 0f);
+        replacement.DisableKeyword("_RIMLIGHT_LERP");
+        replacement.DisableKeyword("_RIMLIGHT_ADDITIVE");
 
         var goldHardware = source.name.IndexOf("Gold", StringComparison.OrdinalIgnoreCase) >= 0 ||
             source.name.IndexOf("Copper", StringComparison.OrdinalIgnoreCase) >= 0 ||
@@ -90,9 +96,6 @@ internal static class ElectroSaberMaterialAdapter
             replacement.SetColor("_Color", goldTint);
             replacement.SetColor("_TintColor", goldTint);
             replacement.SetFloat("_EnableRimLight", 0f);
-            replacement.SetFloat("_RimLight", 0f);
-            replacement.SetFloat("_RimLightIntensity", 0f);
-            replacement.SetFloat("_RimLightBloomIntensity", 0f);
             replacement.SetFloat("_ReflectionIntensity", 0f);
             replacement.SetFloat("_ReflectionProbeIntensity", 0f);
             replacement.SetFloat("_SpecularIntensity", 0f);
