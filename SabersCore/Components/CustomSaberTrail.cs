@@ -66,7 +66,11 @@ public class CustomSaberTrail : SaberTrail
     {
         _color = color * trailData.ColorMultiplier;
         foreach (var trailMaterial in _trailRenderer._meshRenderer.materials)
+        {
             trailMaterial.SetColor(MaterialProperties.Color, _color);
+            if (trailMaterial.shader.name.StartsWith(".poiyomi/", System.StringComparison.OrdinalIgnoreCase))
+                trailMaterial.SetColor("_EmissionColor", _color);
+        }
     }
     
     private new void Start()

@@ -37,7 +37,7 @@ internal class CustomSaber : ISaber
         foreach (var colorer in allColorers)
         {
             var color = colorScheme.GetColorByType(colorer.colorSchemeType);
-            if (ApplyBladeBloomColor(colorer, color)) continue;
+            if (ApplyDirectSaberColor(colorer, color)) continue;
             colorer.materialPropertyBlock ??= new();
             colorer.meshRenderer.GetPropertyBlock(colorer.materialPropertyBlock);
             colorer.materialPropertyBlock.SetColor(colorer.propertyName, color * colorer.multiplierColor);
@@ -68,7 +68,7 @@ internal class CustomSaber : ISaber
             if ((saberType == SaberType.SaberA && colorer.colorSchemeType == ColorSchemeType.LeftSaber)
                 || (saberType == SaberType.SaberB && colorer.colorSchemeType == ColorSchemeType.RightSaber))
             {
-                if (ApplyBladeBloomColor(colorer, color)) continue;
+                if (ApplyDirectSaberColor(colorer, color)) continue;
                 colorer.materialPropertyBlock.SetColor(colorer.propertyName, color * colorer.multiplierColor);
                 if (ownedMaterials.Length > 0 && colorer.propertyName == "_Color")
                     colorer.materialPropertyBlock.SetColor("_RimLightColor", color);
@@ -77,15 +77,26 @@ internal class CustomSaber : ISaber
         }
     }
 
-    private static bool ApplyBladeBloomColor(MaterialColorer colorer, Color color)
+    private static bool ApplyDirectSaberColor(MaterialColorer colorer, Color color)
     {
         var applied = false;
         foreach (var material in colorer.meshRenderer.sharedMaterials)
         {
-            if (material == null || material.shader == null || material.shader.name != "ElectroSaber/BladeBloom")
-                continue;
-            material.SetColor("_SaberColor", color * colorer.multiplierColor);
-            applied = true;
+            if (material == null || material.shader == null) continue;
+            if (material.shader.name == "ElectroSaber/BladeBloom")
+            {
+                material.SetColor("_SaberColor", color * colorer.multiplierColor);
+                applied = true;
+            }
+            else if (material.shader.name.StartsWith(".poiyomi/", StringComparison.OrdinalIgnoreCase) &&
+                     material.HasProperty("_CustomColors") && material.GetFloat("_CustomColors") > 0.5f)
+            {
+                var saberColor = color * colorer.multiplierColor;
+                material.SetColor("_Color", saberColor);
+                if (material.HasProperty("_EnableEmission") && material.GetFloat("_EnableEmission") > 0.5f)
+                    material.SetColor("_EmissionColor", saberColor);
+                applied = true;
+            }
         }
         return applied;
     }

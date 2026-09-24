@@ -11,6 +11,8 @@ internal static class ElectroSaberMaterialAdapter
     public static Material[] Apply(GameObject saber)
     {
         var renderers = saber.GetComponentsInChildren<MeshRenderer>(true);
+        if (renderers.Any(renderer => renderer.sharedMaterials.Any(IsPoiyomiMaterial)))
+            return PreparePoiyomiMaterials(renderers);
         if (!renderers.Any(renderer => renderer.sharedMaterials.Any(material =>
                 IsElectroMaterial(material) || IsBladeBloom(material))))
             return [];
@@ -67,6 +69,44 @@ internal static class ElectroSaberMaterialAdapter
         Plugin.Log.Notice($"Electro Saber: prepared {convertedRenderers} mesh renderers ({replacements.Count} game Handle materials, {bladeInstances.Count} HDR blades)");
         return replacements.Values.Concat(bladeInstances).ToArray();
     }
+
+    private static Material[] PreparePoiyomiMaterials(MeshRenderer[] renderers)
+    {
+        var owned = new List<Material>();
+        var colorableRenderers = 0;
+        foreach (var renderer in renderers)
+        {
+            var colorer = renderer.GetComponent<MaterialColorer>();
+            if (colorer == null) continue;
+
+            var materials = renderer.sharedMaterials;
+            var clones = new Dictionary<Material, Material>();
+            for (var i = 0; i < materials.Length; i++)
+            {
+                var source = materials[i];
+                if (!IsPoiyomiMaterial(source) || source.GetFloat("_CustomColors") < 0.5f) continue;
+                if (!clones.TryGetValue(source, out var clone))
+                {
+                    clone = new Material(source) { name = source.name + " (saber instance)" };
+                    clones.Add(source, clone);
+                    owned.Add(clone);
+                }
+                materials[i] = clone;
+            }
+            if (clones.Count == 0) continue;
+            renderer.sharedMaterials = materials;
+            colorer.propertyName = "_Color";
+            colorableRenderers++;
+        }
+
+        Plugin.Log.Notice($"Electro Saber: prepared {colorableRenderers} Poiyomi color renderers ({owned.Count} material instances)");
+        return owned.ToArray();
+    }
+
+    private static bool IsPoiyomiMaterial(Material material) =>
+        material != null && material.shader != null &&
+        material.shader.name.StartsWith(".poiyomi/", StringComparison.OrdinalIgnoreCase) &&
+        material.HasProperty("_BSSEnabled");
 
     private static bool IsBladeBloom(Material material) =>
         material != null && material.shader != null && material.shader.name == "ElectroSaber/BladeBloom";

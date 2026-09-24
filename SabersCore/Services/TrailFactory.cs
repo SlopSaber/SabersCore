@@ -60,7 +60,10 @@ internal class TrailFactory : ITrailFactory
         if (trailData.Material != null)
         {
             trail._trailRenderer._meshRenderer.material = trailData.Material;
-            trail._trailRenderer._meshRenderer.material.color = baseColor;
+            var trailMaterial = trail._trailRenderer._meshRenderer.material;
+            trailMaterial.color = baseColor;
+            if (trailMaterial.shader.name.StartsWith(".poiyomi/", System.StringComparison.OrdinalIgnoreCase))
+                trailMaterial.SetColor("_EmissionColor", baseColor);
         }
 
         return trail;
