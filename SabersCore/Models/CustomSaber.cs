@@ -23,44 +23,13 @@ internal class CustomSaber : ISaber
     {
         GameObject = gameObject;
         GameObject.SetLayerRecursively(12);
-        if (gameObject.transform.root.name.IndexOf("iSF-ElectroCoachingSilver", StringComparison.Ordinal) >= 0)
+        if (gameObject.name == "RightSaber" &&
+            gameObject.transform.root.name.IndexOf("iSF-ElectroCoachingSilver", StringComparison.Ordinal) >= 0)
         {
-            if (gameObject.name == "RightSaber")
-            {
-                var donor = gameObject.GetComponentsInChildren<MeshRenderer>(true)
-                    .SelectMany(renderer => renderer.sharedMaterials)
-                    .FirstOrDefault(material => material != null &&
-                        material.name.StartsWith("DeepBlue", StringComparison.Ordinal) &&
-                        material.shader != null && material.shader.name == "ElectroSaber/Body");
-                Plugin.Log.Notice($"Electro diagnostic: colored blade donor found={donor != null}");
-                if (donor != null)
-                {
-                    var material = new Material(donor);
-                    material.SetColor("_Color", new Color(0f, 0.5f, 0f, 1f));
-                    material.SetColor("_SaberColor", Color.white);
-                    material.SetFloat("_UseSaberColor", 0f);
-                    material.SetFloat("_UseMatcap", 0f);
-                    material.SetFloat("_Glow", 0.5f);
-                    material.SetTexture("_MainTex", Texture2D.whiteTexture);
-                    foreach (var renderer in gameObject.GetComponentsInChildren<MeshRenderer>(true))
-                        renderer.sharedMaterials = Enumerable.Repeat(material, renderer.sharedMaterials.Length).ToArray();
-                }
-            }
-            else if (gameObject.name == "LeftSaber")
-            {
-                var count = 0;
-                foreach (var renderer in gameObject.GetComponentsInChildren<MeshRenderer>(true))
-                foreach (var material in renderer.sharedMaterials)
-                {
-                    if (material == null || material.shader == null ||
-                        material.shader.name != "ElectroSaber/Body" || !material.HasProperty("_UseMatcap") ||
-                        material.GetFloat("_UseMatcap") == 0f)
-                        continue;
-                    material.SetFloat("_UseMatcap", 0f);
-                    count++;
-                }
-                Plugin.Log.Notice($"Electro diagnostic: LeftSaber disabled matcap on {count} material slots");
-            }
+            var renderers = gameObject.GetComponentsInChildren<Renderer>(true);
+            foreach (var renderer in renderers)
+                renderer.enabled = false;
+            Plugin.Log.Notice($"Electro diagnostic: disabled {renderers.Length} RightSaber renderers");
         }
         EventManager = gameObject.TryGetComponentOrAdd<EventManager>();
         // colorableMaterials = CustomTrailUtils.GetColorableSaberMaterials(gameObject).ToArray();
