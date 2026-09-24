@@ -23,14 +23,6 @@ internal class CustomSaber : ISaber
     {
         GameObject = gameObject;
         GameObject.SetLayerRecursively(12);
-        if (gameObject.name == "RightSaber" &&
-            gameObject.transform.root.name.IndexOf("iSF-ElectroCoachingSilver", StringComparison.Ordinal) >= 0)
-        {
-            var renderers = gameObject.GetComponentsInChildren<Renderer>(true);
-            foreach (var renderer in renderers)
-                renderer.enabled = false;
-            Plugin.Log.Notice($"Electro diagnostic: disabled {renderers.Length} RightSaber renderers");
-        }
         EventManager = gameObject.TryGetComponentOrAdd<EventManager>();
         // colorableMaterials = CustomTrailUtils.GetColorableSaberMaterials(gameObject).ToArray();
         allColorers = gameObject.GetComponentsInChildren<MaterialColorer>(true) ?? [];
