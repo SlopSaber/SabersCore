@@ -23,6 +23,23 @@ internal class CustomSaber : ISaber
     {
         GameObject = gameObject;
         GameObject.SetLayerRecursively(12);
+        if (gameObject.name == "RightSaber" &&
+            gameObject.transform.root.name.IndexOf("iSF-ElectroCoachingSilver", StringComparison.Ordinal) >= 0)
+        {
+            var donor = Resources.FindObjectsOfTypeAll<Material>()
+                .FirstOrDefault(material => material != null && material.name == "Handle" &&
+                    material.shader != null && material.shader.name == "Custom/SimpleLit");
+            Plugin.Log.Notice($"Electro diagnostic: game Handle material found={donor != null}");
+            if (donor != null)
+            {
+                var material = new Material(donor);
+                material.SetColor("_TintColor", new Color(0f, 0.2f, 0f, 1f));
+                material.SetColor("_Color", new Color(0f, 0.2f, 0f, 1f));
+                foreach (var renderer in gameObject.GetComponentsInChildren<MeshRenderer>(true))
+                    renderer.sharedMaterials = Enumerable.Repeat(material, renderer.sharedMaterials.Length).ToArray();
+                gameObject.AddComponent<ElectroMaterialProbe>().ExpectedMaterial = material;
+            }
+        }
         EventManager = gameObject.TryGetComponentOrAdd<EventManager>();
         // colorableMaterials = CustomTrailUtils.GetColorableSaberMaterials(gameObject).ToArray();
         allColorers = gameObject.GetComponentsInChildren<MaterialColorer>(true) ?? [];
