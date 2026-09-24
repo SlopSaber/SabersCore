@@ -91,13 +91,24 @@ internal class CustomSaber : ISaber
             else if (material.GetTag("ElectroPoiyomi", false, "0") == "1" &&
                      material.GetTag("ElectroSaberColor", false, "0") == "1")
             {
-                var saberColor = color * colorer.multiplierColor;
+                var saberColor = SaturatePoiyomiColor(color) * colorer.multiplierColor;
                 material.SetColor("_Color", saberColor);
                 material.SetColor("_EmissionColor", saberColor);
+                if (material.GetTag("ElectroMetallic", false, "0") == "1")
+                    material.SetColor("_MatcapColor", saberColor);
                 applied = true;
             }
         }
         return applied;
+    }
+
+    internal static Color SaturatePoiyomiColor(Color color)
+    {
+        Color.RGBToHSV(color, out var hue, out var saturation, out var value);
+        if (saturation < 0.02f) return color;
+        var result = Color.HSVToRGB(hue, Mathf.Clamp01(saturation * 1.4f + 0.05f), value, true);
+        result.a = color.a;
+        return result;
     }
 
     public void SetParent(Transform parent)

@@ -67,9 +67,11 @@ public class CustomSaberTrail : SaberTrail
         _color = color * trailData.ColorMultiplier;
         foreach (var trailMaterial in _trailRenderer._meshRenderer.materials)
         {
-            trailMaterial.SetColor(MaterialProperties.Color, _color);
-            if (trailMaterial.GetTag("ElectroTrail", false, "0") == "1")
-                trailMaterial.SetColor("_EmissionColor", _color);
+            var poiyomiTrail = trailMaterial.GetTag("ElectroTrail", false, "0") == "1";
+            var materialColor = poiyomiTrail ? CustomSaber.SaturatePoiyomiColor(_color) : _color;
+            trailMaterial.SetColor(MaterialProperties.Color, materialColor);
+            if (poiyomiTrail)
+                trailMaterial.SetColor("_EmissionColor", materialColor);
         }
     }
     

@@ -61,9 +61,11 @@ internal class TrailFactory : ITrailFactory
         {
             trail._trailRenderer._meshRenderer.material = trailData.Material;
             var trailMaterial = trail._trailRenderer._meshRenderer.material;
-            trailMaterial.color = baseColor;
-            if (trailMaterial.GetTag("ElectroTrail", false, "0") == "1")
-                trailMaterial.SetColor("_EmissionColor", baseColor);
+            var poiyomiTrail = trailMaterial.GetTag("ElectroTrail", false, "0") == "1";
+            var materialColor = poiyomiTrail ? CustomSaber.SaturatePoiyomiColor(baseColor) : baseColor;
+            trailMaterial.color = materialColor;
+            if (poiyomiTrail)
+                trailMaterial.SetColor("_EmissionColor", materialColor);
         }
 
         return trail;
