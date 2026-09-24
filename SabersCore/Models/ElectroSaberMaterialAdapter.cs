@@ -11,7 +11,8 @@ internal static class ElectroSaberMaterialAdapter
     public static Material[] Apply(GameObject saber)
     {
         var renderers = saber.GetComponentsInChildren<MeshRenderer>(true);
-        if (!renderers.Any(renderer => renderer.sharedMaterials.Any(IsElectroMaterial)))
+        if (!renderers.Any(renderer => renderer.sharedMaterials.Any(material =>
+                IsElectroMaterial(material) || IsBladeBloom(material))))
             return [];
 
         var gameHandle = Resources.FindObjectsOfTypeAll<Material>().FirstOrDefault(material =>
@@ -24,14 +25,23 @@ internal static class ElectroSaberMaterialAdapter
         }
 
         var replacements = new Dictionary<Material, Material>();
+        var bladeInstances = new List<Material>();
         var convertedRenderers = 0;
         foreach (var renderer in renderers)
         {
             var materials = renderer.sharedMaterials;
             var converted = false;
+            Material? bladeInstance = null;
             for (var i = 0; i < materials.Length; i++)
             {
                 var source = materials[i];
+                if (IsBladeBloom(source))
+                {
+                    bladeInstance ??= new Material(source) { name = source.name + " (saber instance)" };
+                    materials[i] = bladeInstance;
+                    converted = true;
+                    continue;
+                }
                 if (!IsElectroMaterial(source)) continue;
                 if (!replacements.TryGetValue(source, out var replacement))
                 {
@@ -43,9 +53,10 @@ internal static class ElectroSaberMaterialAdapter
             }
             if (!converted) continue;
 
+            if (bladeInstance != null) bladeInstances.Add(bladeInstance);
             renderer.sharedMaterials = materials;
             var colorer = renderer.GetComponent<MaterialColorer>();
-            if (colorer != null)
+            if (colorer != null && bladeInstance == null)
             {
                 colorer.propertyName = "_Color";
                 colorer.multiplierColor = new Color(0.35f, 0.35f, 0.35f, 1f);
@@ -53,9 +64,12 @@ internal static class ElectroSaberMaterialAdapter
             convertedRenderers++;
         }
 
-        Plugin.Log.Notice($"Electro Saber: converted {convertedRenderers} mesh renderers to game Handle shader ({replacements.Count} materials)");
-        return replacements.Values.ToArray();
+        Plugin.Log.Notice($"Electro Saber: prepared {convertedRenderers} mesh renderers ({replacements.Count} game Handle materials, {bladeInstances.Count} HDR blades)");
+        return replacements.Values.Concat(bladeInstances).ToArray();
     }
+
+    private static bool IsBladeBloom(Material material) =>
+        material != null && material.shader != null && material.shader.name == "ElectroSaber/BladeBloom";
 
     private static bool IsElectroMaterial(Material material)
     {

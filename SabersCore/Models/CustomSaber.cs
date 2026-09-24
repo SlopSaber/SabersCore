@@ -37,6 +37,7 @@ internal class CustomSaber : ISaber
         foreach (var colorer in allColorers)
         {
             var color = colorScheme.GetColorByType(colorer.colorSchemeType);
+            if (ApplyBladeBloomColor(colorer, color)) continue;
             colorer.materialPropertyBlock ??= new();
             colorer.meshRenderer.GetPropertyBlock(colorer.materialPropertyBlock);
             colorer.materialPropertyBlock.SetColor(colorer.propertyName, color * colorer.multiplierColor);
@@ -67,12 +68,26 @@ internal class CustomSaber : ISaber
             if ((saberType == SaberType.SaberA && colorer.colorSchemeType == ColorSchemeType.LeftSaber)
                 || (saberType == SaberType.SaberB && colorer.colorSchemeType == ColorSchemeType.RightSaber))
             {
+                if (ApplyBladeBloomColor(colorer, color)) continue;
                 colorer.materialPropertyBlock.SetColor(colorer.propertyName, color * colorer.multiplierColor);
                 if (ownedMaterials.Length > 0 && colorer.propertyName == "_Color")
                     colorer.materialPropertyBlock.SetColor("_RimLightColor", color);
                 colorer.meshRenderer.SetPropertyBlock(colorer.materialPropertyBlock);
             }
         }
+    }
+
+    private static bool ApplyBladeBloomColor(MaterialColorer colorer, Color color)
+    {
+        var applied = false;
+        foreach (var material in colorer.meshRenderer.sharedMaterials)
+        {
+            if (material == null || material.shader == null || material.shader.name != "ElectroSaber/BladeBloom")
+                continue;
+            material.SetColor("_SaberColor", color * colorer.multiplierColor);
+            applied = true;
+        }
+        return applied;
     }
 
     public void SetParent(Transform parent)
