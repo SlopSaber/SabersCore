@@ -79,7 +79,9 @@ internal static class ElectroSaberMaterialAdapter
             var blade = new Material(gameBlade) { name = source.name + " (game blade shader)" };
             blade.SetColor("_Color", Color.white);
             blade.SetColor("_AddColor", new Color(0.2f, 0.2f, 0.2f, 0f));
-            blade.SetFloat("_Brightness", 1.25f);
+            blade.SetFloat("_EnableInstancedColor", 0f);
+            blade.DisableKeyword("_ENABLE_INSTANCED_COLOR");
+            blade.SetFloat("_Brightness", 2f);
             return blade;
         }
 
