@@ -15,6 +15,7 @@ internal class CustomSaber : ISaber
     private readonly MaterialColorer[] allColorers;
     private readonly MaterialColorer[] saberColors;
     private readonly MaterialColorer[] boostColors;
+    private readonly Material[] ownedMaterials;
 
     public GameObject GameObject { get; }
     public EventManager EventManager { get; }
@@ -23,6 +24,7 @@ internal class CustomSaber : ISaber
     {
         GameObject = gameObject;
         GameObject.SetLayerRecursively(12);
+        ownedMaterials = ElectroSaberMaterialAdapter.Apply(gameObject);
         EventManager = gameObject.TryGetComponentOrAdd<EventManager>();
         // colorableMaterials = CustomTrailUtils.GetColorableSaberMaterials(gameObject).ToArray();
         allColorers = gameObject.GetComponentsInChildren<MaterialColorer>(true) ?? [];
@@ -87,6 +89,8 @@ internal class CustomSaber : ISaber
         if (GameObject != null)
         {
             GameObject.Destroy();
+            foreach (var material in ownedMaterials)
+                UnityEngine.Object.Destroy(material);
         }
     }
 }
