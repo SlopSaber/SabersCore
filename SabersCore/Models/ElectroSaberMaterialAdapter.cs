@@ -77,6 +77,29 @@ internal static class ElectroSaberMaterialAdapter
         replacement.SetColor("_AddColor", Color.clear);
         replacement.SetColor("_EmissionColor", Color.black);
 
+        var goldHardware = source.name.IndexOf("Gold", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            source.name.IndexOf("Copper", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            source.name.StartsWith("OkaFresnelThinGreeen", StringComparison.Ordinal);
+        if (goldHardware)
+        {
+            var goldTint = new Color(
+                0.13f + 0.4f * Mathf.Clamp01(sourceColor.r),
+                0.05f + 0.34f * Mathf.Clamp01(sourceColor.g),
+                0.02f + 0.2f * Mathf.Clamp01(sourceColor.b),
+                1f);
+            replacement.SetColor("_Color", goldTint);
+            replacement.SetColor("_TintColor", goldTint);
+            replacement.SetFloat("_EnableRimLight", 0f);
+            replacement.SetFloat("_RimLight", 0f);
+            replacement.SetFloat("_RimLightIntensity", 0f);
+            replacement.SetFloat("_RimLightBloomIntensity", 0f);
+            replacement.SetFloat("_ReflectionIntensity", 0f);
+            replacement.SetFloat("_ReflectionProbeIntensity", 0f);
+            replacement.SetFloat("_SpecularIntensity", 0f);
+            replacement.SetFloat("_Smoothness", 0.3f);
+            replacement.SetFloat("_Glossiness", 0.3f);
+        }
+
         if (source.HasProperty("_MainTex") && source.GetTexture("_MainTex") is { } texture)
         {
             replacement.SetTexture("_DiffuseTexture", texture);
