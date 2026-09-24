@@ -60,7 +60,7 @@ internal static class ElectroSaberMaterialAdapter
     private static bool IsElectroMaterial(Material material)
     {
         var name = material?.shader?.name;
-        return name == "ElectroSaber/Body" || name == "ElectroSaber/Glow";
+        return name == "ElectroSaber/Body" || name == "ElectroSaber/Glow" || name == "ElectroSaber/Trail";
     }
 
     private static Material CreateReplacement(Material gameHandle, Material source)
@@ -100,7 +100,7 @@ internal static class ElectroSaberMaterialAdapter
             replacement.SetFloat("_Glossiness", 0.3f);
         }
 
-        if (source.HasProperty("_MainTex") && source.GetTexture("_MainTex") is { } texture)
+        if (!goldHardware && source.HasProperty("_MainTex") && source.GetTexture("_MainTex") is { } texture)
         {
             replacement.SetTexture("_DiffuseTexture", texture);
             replacement.SetTextureScale("_DiffuseTexture", source.GetTextureScale("_MainTex"));
