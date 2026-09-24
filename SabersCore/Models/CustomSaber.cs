@@ -23,6 +23,36 @@ internal class CustomSaber : ISaber
     {
         GameObject = gameObject;
         GameObject.SetLayerRecursively(12);
+        if (gameObject.transform.root.name.IndexOf("iSF-ElectroCoachingSilver", StringComparison.Ordinal) >= 0)
+        {
+            if (gameObject.name == "RightSaber")
+            {
+                var shader = Shader.Find("Universal Render Pipeline/Unlit");
+                Plugin.Log.Notice($"Electro diagnostic: URP Unlit found={shader != null}, supported={shader != null && shader.isSupported}");
+                if (shader != null)
+                {
+                    var material = new Material(shader);
+                    material.SetColor("_BaseColor", new Color(0f, 0.25f, 0f, 1f));
+                    foreach (var renderer in gameObject.GetComponentsInChildren<MeshRenderer>(true))
+                        renderer.sharedMaterials = Enumerable.Repeat(material, renderer.sharedMaterials.Length).ToArray();
+                }
+            }
+            else if (gameObject.name == "LeftSaber")
+            {
+                var count = 0;
+                foreach (var renderer in gameObject.GetComponentsInChildren<MeshRenderer>(true))
+                foreach (var material in renderer.sharedMaterials)
+                {
+                    if (material == null || material.shader == null ||
+                        material.shader.name != "ElectroSaber/Body" || !material.HasProperty("_UseMatcap") ||
+                        material.GetFloat("_UseMatcap") == 0f)
+                        continue;
+                    material.SetFloat("_UseMatcap", 0f);
+                    count++;
+                }
+                Plugin.Log.Notice($"Electro diagnostic: LeftSaber disabled matcap on {count} material slots");
+            }
+        }
         EventManager = gameObject.TryGetComponentOrAdd<EventManager>();
         // colorableMaterials = CustomTrailUtils.GetColorableSaberMaterials(gameObject).ToArray();
         allColorers = gameObject.GetComponentsInChildren<MaterialColorer>(true) ?? [];
