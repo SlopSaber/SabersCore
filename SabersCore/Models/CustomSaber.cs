@@ -88,13 +88,12 @@ internal class CustomSaber : ISaber
                 material.SetColor("_SaberColor", color * colorer.multiplierColor);
                 applied = true;
             }
-            else if (material.shader.name.StartsWith(".poiyomi/", StringComparison.OrdinalIgnoreCase) &&
-                     material.HasProperty("_CustomColors") && material.GetFloat("_CustomColors") > 0.5f)
+            else if (material.GetTag("ElectroPoiyomi", false, "0") == "1" &&
+                     material.GetTag("ElectroSaberColor", false, "0") == "1")
             {
                 var saberColor = color * colorer.multiplierColor;
                 material.SetColor("_Color", saberColor);
-                if (material.HasProperty("_EnableEmission") && material.GetFloat("_EnableEmission") > 0.5f)
-                    material.SetColor("_EmissionColor", saberColor);
+                material.SetColor("_EmissionColor", saberColor);
                 applied = true;
             }
         }

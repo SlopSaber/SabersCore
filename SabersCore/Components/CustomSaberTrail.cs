@@ -68,7 +68,7 @@ public class CustomSaberTrail : SaberTrail
         foreach (var trailMaterial in _trailRenderer._meshRenderer.materials)
         {
             trailMaterial.SetColor(MaterialProperties.Color, _color);
-            if (trailMaterial.shader.name.StartsWith(".poiyomi/", System.StringComparison.OrdinalIgnoreCase))
+            if (trailMaterial.GetTag("ElectroTrail", false, "0") == "1")
                 trailMaterial.SetColor("_EmissionColor", _color);
         }
     }

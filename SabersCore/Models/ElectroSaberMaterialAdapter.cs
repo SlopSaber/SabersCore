@@ -84,7 +84,8 @@ internal static class ElectroSaberMaterialAdapter
             for (var i = 0; i < materials.Length; i++)
             {
                 var source = materials[i];
-                if (!IsPoiyomiMaterial(source) || source.GetFloat("_CustomColors") < 0.5f) continue;
+                if (!IsPoiyomiMaterial(source) ||
+                    source.GetTag("ElectroSaberColor", false, "0") != "1") continue;
                 if (!clones.TryGetValue(source, out var clone))
                 {
                     clone = new Material(source) { name = source.name + " (saber instance)" };
@@ -104,9 +105,7 @@ internal static class ElectroSaberMaterialAdapter
     }
 
     private static bool IsPoiyomiMaterial(Material material) =>
-        material != null && material.shader != null &&
-        material.shader.name.StartsWith(".poiyomi/", StringComparison.OrdinalIgnoreCase) &&
-        material.HasProperty("_BSSEnabled");
+        material != null && material.GetTag("ElectroPoiyomi", false, "0") == "1";
 
     private static bool IsBladeBloom(Material material) =>
         material != null && material.shader != null && material.shader.name == "ElectroSaber/BladeBloom";
