@@ -35,10 +35,11 @@ internal class SaberFileManager : ISaberFileManager
         var fileInfos = directoryManager.CustomSabers.EnumerateSaberFiles(SearchOption.AllDirectories).ToList();
         int i = 0;
         int lastPercent = 0;
+        var progressGate = new object();
         var saberFileBag = new ConcurrentBag<SaberFileInfo>();
         var parallelOptions = new ParallelOptions
         {
-            MaxDegreeOfParallelism = Environment.ProcessorCount / 2 - 1,
+            MaxDegreeOfParallelism = Math.Max(1, Math.Min(4, Environment.ProcessorCount / 2)),
             CancellationToken = token
         };
         
@@ -46,13 +47,15 @@ internal class SaberFileManager : ISaberFileManager
         {
             if (TryCreateSaberFile(file, out var saberFileInfo)) saberFileBag.Add(saberFileInfo);
             
-            int newPercent = (i + 1) * 100 / fileInfos.Count;
-            if (newPercent != lastPercent)
+            int newPercent = Interlocked.Increment(ref i) * 100 / fileInfos.Count;
+            lock (progressGate)
             {
-                progress.Report(newPercent);
-                lastPercent = newPercent;
+                if (newPercent > lastPercent)
+                {
+                    progress.Report(newPercent);
+                    lastPercent = newPercent;
+                }
             }
-            i++;
         });
 
         loadedFiles = saberFileBag.Distinct(new SaberFileInfoHashComparer()).ToArray();

@@ -10,15 +10,21 @@ internal static class TextureExtensions
     public static Texture2D DuplicateTexture(this Texture2D source)
     {
         var renderTex = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.Default, RenderTextureReadWrite.Default);
-        Graphics.Blit(source, renderTex);
         var previous = RenderTexture.active;
-        RenderTexture.active = renderTex;
-        var readableText = new Texture2D(source.width, source.height);
-        readableText.ReadPixels(new(0, 0, renderTex.width, renderTex.height), 0, 0);
-        readableText.Apply();
-        RenderTexture.active = previous;
-        RenderTexture.ReleaseTemporary(renderTex);
-        return readableText;
+        try
+        {
+            Graphics.Blit(source, renderTex);
+            RenderTexture.active = renderTex;
+            var readableText = new Texture2D(source.width, source.height);
+            readableText.ReadPixels(new(0, 0, renderTex.width, renderTex.height), 0, 0);
+            readableText.Apply();
+            return readableText;
+        }
+        finally
+        {
+            RenderTexture.active = previous;
+            RenderTexture.ReleaseTemporary(renderTex);
+        }
     }
 
     /// <summary>
@@ -34,15 +40,24 @@ internal static class TextureExtensions
 
         origTexture.filterMode = filterMode;
         origTexture.Apply(true);
-        var renderTexture = new RenderTexture(width, height, 32);
-        Graphics.SetRenderTarget(renderTexture);
-        GL.LoadPixelMatrix(0, 1, 1, 0);
-        GL.Clear(true, true, Color.clear);
-        Graphics.DrawTexture(new(0, 0, 1, 1), origTexture);
+        var renderTexture = RenderTexture.GetTemporary(width, height, 32);
+        var previous = RenderTexture.active;
+        try
+        {
+            Graphics.SetRenderTarget(renderTexture);
+            GL.LoadPixelMatrix(0, 1, 1, 0);
+            GL.Clear(true, true, Color.clear);
+            Graphics.DrawTexture(new(0, 0, 1, 1), origTexture);
 
-        origTexture.Reinitialize(width, height);
-        origTexture.ReadPixels(textureRect, 0, 0, true);
-        origTexture.Apply(true);
+            origTexture.Reinitialize(width, height);
+            origTexture.ReadPixels(textureRect, 0, 0, true);
+            origTexture.Apply(true);
+        }
+        finally
+        {
+            RenderTexture.active = previous;
+            RenderTexture.ReleaseTemporary(renderTexture);
+        }
 
         return origTexture;
     }
