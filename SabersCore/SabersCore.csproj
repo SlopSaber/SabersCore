@@ -5,7 +5,7 @@
     <PropertyGroup>
     <ImportBSMTTargets>true</ImportBSMTTargets>
     <BSMTProjectType>BSIPA</BSMTProjectType>
-    <GameDirectory>D:\BSManager\BSInstances\1.45.1</GameDirectory>
+    <GameDirectory>D:\BSManager\BSInstances\1.45.2</GameDirectory>
     <AssetComponentsReferencePath Condition="'$(AssetComponentsReferencePath)' == ''">$(GameDirectory)\Libs\AssetComponents.dll</AssetComponentsReferencePath>
     <SaberComponentsReferencePath Condition="'$(SaberComponentsReferencePath)' == ''">$(GameDirectory)\Libs\SaberComponents.dll</SaberComponentsReferencePath>
     <CopyPDB>false</CopyPDB>
