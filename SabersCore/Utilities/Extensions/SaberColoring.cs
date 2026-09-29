@@ -55,6 +55,12 @@ public static class SaberColoring
         _ => throw new ArgumentOutOfRangeException()
     };
     
+    public static Color GetColorByType(this ColorScheme scheme, AssetComponents.Models.ColorSchemeType type) =>
+        scheme.GetColorByType((ColorSchemeType)type);
+
+    public static Color GetBoostColorByType(this ColorScheme scheme, AssetComponents.Models.ColorSchemeType type, bool boost) =>
+        scheme.GetBoostColorByType((ColorSchemeType)type, boost);
+
     public static void SetNewColor(this SetSaberGlowColor setSaberGlowColor, Color color)
     {
         var materialPropertyBlock = setSaberGlowColor._materialPropertyBlock ??= new();

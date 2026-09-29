@@ -6,6 +6,7 @@
     <ImportBSMTTargets>true</ImportBSMTTargets>
     <BSMTProjectType>BSIPA</BSMTProjectType>
     <GameDirectory>D:\BSManager\BSInstances\1.45.1</GameDirectory>
+    <AssetComponentsReferencePath Condition="'$(AssetComponentsReferencePath)' == ''">$(GameDirectory)\Libs\AssetComponents.dll</AssetComponentsReferencePath>
     <CopyPDB>false</CopyPDB>
     <DisableCopyToGame>false</DisableCopyToGame>
         <TargetFramework>net472</TargetFramework>
@@ -101,6 +102,10 @@
         </Reference>
         <Reference Include="SaberComponents">
             <HintPath>$(GameDirectory)\Libs\SaberComponents.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="AssetComponents">
+            <HintPath>$(AssetComponentsReferencePath)</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="SaberTrail" Publicize="true">
