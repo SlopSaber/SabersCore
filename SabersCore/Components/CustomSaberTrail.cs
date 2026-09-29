@@ -34,6 +34,17 @@ public class CustomSaberTrail : SaberTrail
     
     public ITrailData TrailData => trailData;
 
+    public void SetColorScheme(ColorScheme colorScheme) => SetColor(colorScheme);
+
+    public void SetBoostColors(ColorScheme colorScheme, bool isBoostOn) =>
+        UpdateBoostColors(colorScheme, isBoostOn);
+
+    public void SetSpecificColor(Color color)
+    {
+        if (!trailData.UseTrailColor && trailData.ColorSchemeType is ColorSchemeType.LeftSaber or ColorSchemeType.RightSaber)
+            SetColor(color);
+    }
+
     public void SetColor(ColorScheme colorScheme)
     {
         if (trailData.UseTrailColor)

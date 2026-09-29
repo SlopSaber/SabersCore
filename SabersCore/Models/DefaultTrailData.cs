@@ -9,10 +9,13 @@ public class DefaultTrailData : ITrailData
     public DefaultTrailData(Material defaultMaterial, SaberType saberType)
     {
         Material = defaultMaterial;
+        Materials = [defaultMaterial];
         ColorSchemeType = saberType == SaberType.SaberA ? ColorSchemeType.LeftSaber : ColorSchemeType.RightSaber;
+        Colorizer = new LegacyTrailColorizer(this);
     }
     
     public Material? Material { get; }
+    public Material[] Materials { get; }
     public Vector3 TrailTopOffset => Vector3.forward;
     public Vector3 TrailBottomOffset => Vector3.zero;
     
@@ -24,4 +27,5 @@ public class DefaultTrailData : ITrailData
     public bool UseTrailColor => false;
     public Color CustomColor => Color.white;
     public Color ColorMultiplier => Color.white; 
+    public ITrailColorizer Colorizer { get; }
 }

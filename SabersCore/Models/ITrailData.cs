@@ -11,6 +11,7 @@ public interface ITrailData
     public Vector3 TrailTopOffset { get; }
     public Vector3 TrailBottomOffset { get; }
     public Material? Material { get; }
+    public Material[] Materials { get; }
     
     public float LengthSeconds { get; }
     
@@ -20,4 +21,5 @@ public interface ITrailData
     public bool UseTrailColor { get; }
     public Color CustomColor { get; }
     public Color ColorMultiplier { get; }
+    public ITrailColorizer Colorizer { get; }
 }

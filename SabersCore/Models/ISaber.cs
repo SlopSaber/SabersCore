@@ -13,16 +13,19 @@ public interface ISaber
     /// Color all materials based on a full color scheme
     /// </summary>
     public void SetColor(ColorScheme colorScheme);
+    public void SetColorScheme(ColorScheme colorScheme);
     
     /// <summary>
     /// Color materials that want to use saber colors
     /// </summary>
     public void SetColor(Color color, SaberType saberType);
+    public void SetSpecificColor(Color color);
     
     /// <summary>
     /// Update colors of the saber that want to switch between environment colors and boost colors
     /// </summary>
     public void UpdateBoostColors(ColorScheme colorScheme, bool isBoostOn);
+    public void SetBoostColors(ColorScheme colorScheme, bool isBoostOn);
     
     public void SetParent(Transform parent);
     public void SetLength(float length);

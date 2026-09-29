@@ -47,6 +47,17 @@ internal class CustomSaber : ISaber
         }
     }
 
+    public void SetColorScheme(ColorScheme colorScheme) => SetColor(colorScheme);
+
+    public void SetBoostColors(ColorScheme colorScheme, bool isBoostOn) =>
+        UpdateBoostColors(colorScheme, isBoostOn);
+
+    public void SetSpecificColor(Color color)
+    {
+        SetColor(color, SaberType.SaberA);
+        SetColor(color, SaberType.SaberB);
+    }
+
     public void UpdateBoostColors(ColorScheme colorScheme, bool isBoostOn)
     {
         foreach (var colorer in boostColors)

@@ -8,6 +8,7 @@ namespace SabersCore.Models;
 public class DefaultSaber : ISaber
 {
     private readonly DefaultSaberColorer defaultSaberColorer;
+    private readonly SaberType saberType;
 
     public GameObject GameObject { get; }
     public EventManager? EventManager => null;
@@ -15,11 +16,19 @@ public class DefaultSaber : ISaber
     public DefaultSaber(GameObject defaultSaberObject, SaberType saberType)
     {
         GameObject = defaultSaberObject;
+        this.saberType = saberType;
         defaultSaberColorer = new(defaultSaberObject, saberType);
     }
 
     public void SetColor(ColorScheme colorScheme) =>
         defaultSaberColorer.SetColor(colorScheme);
+
+    public void SetColorScheme(ColorScheme colorScheme) => SetColor(colorScheme);
+
+    public void SetSpecificColor(Color color) => SetColor(color, saberType);
+
+    public void SetBoostColors(ColorScheme colorScheme, bool isBoostOn) =>
+        UpdateBoostColors(colorScheme, isBoostOn);
 
     public void SetColor(Color color, SaberType saberType)
     {
