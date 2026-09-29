@@ -7,6 +7,7 @@
     <BSMTProjectType>BSIPA</BSMTProjectType>
     <GameDirectory>D:\BSManager\BSInstances\1.45.1</GameDirectory>
     <AssetComponentsReferencePath Condition="'$(AssetComponentsReferencePath)' == ''">$(GameDirectory)\Libs\AssetComponents.dll</AssetComponentsReferencePath>
+    <SaberComponentsReferencePath Condition="'$(SaberComponentsReferencePath)' == ''">$(GameDirectory)\Libs\SaberComponents.dll</SaberComponentsReferencePath>
     <CopyPDB>false</CopyPDB>
     <DisableCopyToGame>false</DisableCopyToGame>
         <TargetFramework>net472</TargetFramework>
@@ -101,7 +102,7 @@
           <HintPath>$(GameDirectory)\Beat Saber_Data\Managed\Newtonsoft.Json.dll</HintPath>
         </Reference>
         <Reference Include="SaberComponents">
-            <HintPath>$(GameDirectory)\Libs\SaberComponents.dll</HintPath>
+            <HintPath>$(SaberComponentsReferencePath)</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="AssetComponents">
