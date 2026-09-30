@@ -24,7 +24,8 @@ internal class CustomSaber : ISaber
     {
         GameObject = gameObject;
         GameObject.SetLayerRecursively(12);
-        ownedMaterials = ElectroSaberMaterialAdapter.Apply(gameObject);
+        ownedMaterials = SaberForegroundMaterialAdapter.Apply(
+            gameObject, ElectroSaberMaterialAdapter.Apply(gameObject));
         EventManager = gameObject.TryGetComponentOrAdd<EventManager>();
         // colorableMaterials = CustomTrailUtils.GetColorableSaberMaterials(gameObject).ToArray();
         allColorers = gameObject.GetComponentsInChildren<MaterialColorer>(true) ?? [];
