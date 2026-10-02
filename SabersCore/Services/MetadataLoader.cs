@@ -124,6 +124,8 @@ internal class MetadataLoader : IAsyncInitializable, IDisposable, ISaberMetadata
         
         stageChangedProgress.Report(new("Loading Sabers"));
         var updatedLocalCache = await GetUpdatedLocalCache(localCacheFile, sabersToLoad, token, simpleIntProgress);
+        await UnityGame.SwitchToMainThreadAsync();
+        token.ThrowIfCancellationRequested();
         
         if (localCacheFile != updatedLocalCache)
         {
@@ -290,6 +292,8 @@ internal class MetadataLoader : IAsyncInitializable, IDisposable, ISaberMetadata
         }
 
         var loadedMetadata = await LoadMetadataFromSabers(sabersToLoad, token, progress);
+        await UnityGame.SwitchToMainThreadAsync();
+        token.ThrowIfCancellationRequested();
         
         if (!loadedMetadata.Any())
         {

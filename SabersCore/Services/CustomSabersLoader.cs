@@ -66,6 +66,8 @@ internal class CustomSabersLoader : ISabersLoader, IDisposable
         }
         catch (DirectoryNotFoundException)
         {
+            await UnityGame.SwitchToMainThreadAsync();
+            if (disposed) throw new OperationCanceledException();
             return new NoSaberData(saberFile, SaberLoaderError.FileNotFound);
         }
         finally
