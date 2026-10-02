@@ -2,11 +2,11 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using IPA.Utilities;
 using SabersCore.Models;
 using SabersCore.Utilities.Common;
 using SabersCore.Utilities.Extensions;
@@ -47,6 +47,10 @@ internal class MetadataLoader : IAsyncInitializable, IDisposable, ISaberMetadata
 
     private CancellationTokenSource reloadTokenSource = new();
     private MetadataLoaderProgress currentProgress = new(string.Empty);
+    private readonly SemaphoreSlim cacheSaveGate = new(1, 1);
+    private Task? cacheFileTask;
+    private string? cacheTemporaryPath;
+    private bool disposed;
 
     private string CacheArchiveFilePath => Path.Combine(directoryManager.UserData.FullName, "cache");
 
@@ -57,7 +61,7 @@ internal class MetadataLoader : IAsyncInitializable, IDisposable, ISaberMetadata
         get => currentProgress;
         private set
         {
-            if (currentProgress == value) return;
+            if (disposed || currentProgress == value) return;
             currentProgress = value;
             LoadingProgressChanged?.Invoke(value);
         }
@@ -70,6 +74,8 @@ internal class MetadataLoader : IAsyncInitializable, IDisposable, ISaberMetadata
 
     public async Task ReloadAsync()
     {
+        await UnityGame.SwitchToMainThreadAsync();
+        if (disposed) return;
         reloadTokenSource.CancelThenDispose();
         reloadTokenSource = new();
 
@@ -79,11 +85,13 @@ internal class MetadataLoader : IAsyncInitializable, IDisposable, ISaberMetadata
         }
         catch (OperationCanceledException)
         {
-            Plugin.Log.Debug("Reload operation cancelled.");
+            await UnityGame.SwitchToMainThreadAsync();
+            if (!disposed) Plugin.Log.Debug("Reload operation cancelled.");
         }
         catch (Exception e)
         {
-            Plugin.Log.Error($"Problem encountered during reload\n{e}");
+            await UnityGame.SwitchToMainThreadAsync();
+            if (!disposed) Plugin.Log.Error($"Problem encountered during reload\n{e}");
         }
     }
     
@@ -92,17 +100,26 @@ internal class MetadataLoader : IAsyncInitializable, IDisposable, ISaberMetadata
         prefabCache.Clear();
         saberMetadataCache.Clear();
         var stopwatch = Stopwatch.StartNew();
-        var simpleIntProgress = new Progress<int>(v => CurrentProgress = currentProgress with { StagePercent = v });
-        IProgress<MetadataLoaderProgress> stageChangedProgress = new Progress<MetadataLoaderProgress>(p => CurrentProgress = p);
+        var simpleIntProgress = new Progress<int>(v =>
+        {
+            if (!token.IsCancellationRequested) CurrentProgress = currentProgress with { StagePercent = v };
+        });
+        IProgress<MetadataLoaderProgress> stageChangedProgress = new Progress<MetadataLoaderProgress>(p =>
+        {
+            if (!token.IsCancellationRequested) CurrentProgress = p;
+        });
         
         stageChangedProgress.Report(new("Retrieving Saber Files"));
         var localSaberFiles = await saberFileManager.ReloadAllSaberFiles(token, simpleIntProgress);
-        var installedSaberHashes = localSaberFiles.Select(file => file.Hash).ToHashSet();
+        await UnityGame.SwitchToMainThreadAsync();
+        token.ThrowIfCancellationRequested();
 
         stageChangedProgress.Report(new("Loading Cache"));
         var localCacheFile = await GetLocalCache(token);
 
-        var sabersToLoad = GetSabersToLoad(localCacheFile, localSaberFiles).ToArray();
+        var sabersToLoad = await GetSabersToLoad(localCacheFile, localSaberFiles, token);
+        await UnityGame.SwitchToMainThreadAsync();
+        token.ThrowIfCancellationRequested();
         Plugin.Log.Notice($"Found {sabersToLoad.Length} saber files to load");
         
         stageChangedProgress.Report(new("Loading Sabers"));
@@ -111,10 +128,12 @@ internal class MetadataLoader : IAsyncInitializable, IDisposable, ISaberMetadata
         if (localCacheFile != updatedLocalCache)
         {
             stageChangedProgress.Report(new("Saving Metadata"));
-            await SaveMetadataToLocalCache(updatedLocalCache);
+            await SaveMetadataToLocalCache(updatedLocalCache, token);
         }
-        
-        UpdateMetadataCache(updatedLocalCache, localSaberFiles, installedSaberHashes);
+
+        await UpdateMetadataCache(updatedLocalCache, localSaberFiles, token);
+        await UnityGame.SwitchToMainThreadAsync();
+        token.ThrowIfCancellationRequested();
 
         stopwatch.Stop();
         Plugin.Log.Notice($"Cache loading took {stopwatch.ElapsedMilliseconds}ms");
@@ -124,65 +143,140 @@ internal class MetadataLoader : IAsyncInitializable, IDisposable, ISaberMetadata
 
     private async Task<CacheFileModel> GetLocalCache(CancellationToken token)
     {
-        if (!await saberMetadataCacheMigrationManager.MigrationTask)
+        var migrated = await saberMetadataCacheMigrationManager.MigrationTask;
+        await UnityGame.SwitchToMainThreadAsync();
+        token.ThrowIfCancellationRequested();
+        if (!migrated)
         {
             Plugin.Log.Warn("Internal reload was denied because of a failure during cache migration");
             return CacheFileModel.Empty;
         }
         token.ThrowIfCancellationRequested();
 
-        var cacheFile = new FileInfo(CacheArchiveFilePath);
-        
-        if (!cacheFile.Exists) return CacheFileModel.Empty;
-
-        using var cacheZipArchive = ZipFile.OpenRead(cacheFile.FullName);
-
-        var metadataJsonEntry = cacheZipArchive.GetEntry("metadata.json");
-        await using var metadataJsonStream = metadataJsonEntry?.Open();
-
-        if (metadataJsonStream is null) return CacheFileModel.Empty;
-
-        var cache = metadataJsonStream.DeserializeStream<CacheFileModel>()?.WithValidation() ?? CacheFileModel.Empty;
-        
-        foreach (var meta in cache.CachedMetadata)
-        {
-            var sprite = await LoadSpriteFromCache(cacheZipArchive, meta, token);
-            spriteCache.AddSprite(meta.Hash, sprite);
-        }
-
-        return cache;
-    }
-
-    private async Task SaveMetadataToLocalCache(CacheFileModel cacheFile)
-    {
-        var tempCacheDir = Directory.CreateDirectory(Path.Combine(directoryManager.UserData.FullName, "temp"));
-        var imagesDir = tempCacheDir.CreateSubdirectory("images");
-
+        await cacheSaveGate.WaitAsync(token);
+        await UnityGame.SwitchToMainThreadAsync();
         try
         {
-            foreach (var meta in cacheFile.CachedMetadata)
+            token.ThrowIfCancellationRequested();
+            var read = await RunCacheIO(MetadataCacheIO.Read, (CacheArchiveFilePath, token), token);
+            await UnityGame.SwitchToMainThreadAsync();
+            token.ThrowIfCancellationRequested();
+            var cache = read.Metadata ?? CacheFileModel.Empty;
+            try
             {
-                var imageData = spriteCache.GetSprite(meta.Hash)?.texture.EncodeToPNG();
-                if (imageData == null) continue;
-
-                string imagePath = Path.Combine(imagesDir.FullName, meta.Hash + ".png");
-                await File.WriteAllBytesAsync(imagePath, imageData);
+                for (var i = 0; i < cache.CachedMetadata.Length; i++)
+                {
+                    token.ThrowIfCancellationRequested();
+                    if (read.ImageErrors[i] != null)
+                        System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(read.ImageErrors[i]!).Throw();
+                    var meta = cache.CachedMetadata[i];
+                    var image = read.Images[i];
+                    read.Images[i] = null;
+                    var sprite = image == null ? null : new Texture2D(2, 2).ToSprite(image, rename: meta.SaberName);
+                    spriteCache.AddSprite(meta.Hash, sprite);
+                }
             }
-
-            string cacheJson = JsonConvert.SerializeObject(cacheFile, Formatting.None);
-            string metadataFilePath = Path.Combine(tempCacheDir.FullName, "metadata.json");
-            await File.WriteAllTextAsync(metadataFilePath, cacheJson);
-
-            if (File.Exists(CacheArchiveFilePath)) File.Delete(CacheArchiveFilePath);
-            ZipFile.CreateFromDirectory(tempCacheDir.FullName, CacheArchiveFilePath);
-        }
-        catch (Exception ex)
-        {
-            Plugin.Log.Warn($"Problem encountered when saving the saber metadata cache\n{ex}");
+            finally
+            {
+                Array.Clear(read.Images, 0, read.Images.Length);
+                Array.Clear(read.ImageErrors, 0, read.ImageErrors.Length);
+            }
+            return cache;
         }
         finally
         {
-            tempCacheDir.Delete(true);
+            cacheSaveGate.Release();
+        }
+    }
+
+    private async Task SaveMetadataToLocalCache(CacheFileModel cacheFile, CancellationToken token)
+    {
+        await cacheSaveGate.WaitAsync(token);
+        await UnityGame.SwitchToMainThreadAsync();
+        try
+        {
+            token.ThrowIfCancellationRequested();
+            var temporaryPath = Path.Combine(directoryManager.UserData.FullName, "temp");
+            cacheTemporaryPath = temporaryPath;
+            await RunCacheIO(MetadataCacheIO.CreateTemporaryDirectories, temporaryPath);
+            await UnityGame.SwitchToMainThreadAsync();
+            try
+            {
+                foreach (var meta in cacheFile.CachedMetadata)
+                {
+                    if (disposed || token.IsCancellationRequested) return;
+                    var image = spriteCache.GetSprite(meta.Hash)?.texture.EncodeToPNG();
+                    if (image == null) continue;
+                    var imagePath = Path.Combine(temporaryPath, "images", meta.Hash + ".png");
+                    await RunCacheIO(MetadataCacheIO.WriteImage, (imagePath, image));
+                    await UnityGame.SwitchToMainThreadAsync();
+                }
+
+                if (disposed || token.IsCancellationRequested) return;
+                var useWorkerJson = JsonConvert.DefaultSettings == null && cacheFile.GetType() == typeof(CacheFileModel);
+                var json = useWorkerJson ? null : JsonConvert.SerializeObject(cacheFile, Formatting.None);
+                if (disposed || token.IsCancellationRequested) return;
+                var capturedMetadata = useWorkerJson
+                    ? new CacheFileModel(cacheFile.Version, cacheFile.CachedMetadata.ToArray()) : null;
+                await RunCacheIO(MetadataCacheIO.SaveArchive, (temporaryPath, CacheArchiveFilePath, capturedMetadata, json));
+                await UnityGame.SwitchToMainThreadAsync();
+            }
+            catch (Exception ex)
+            {
+                await UnityGame.SwitchToMainThreadAsync();
+                if (!disposed) Plugin.Log.Warn($"Problem encountered when saving the saber metadata cache\n{ex}");
+            }
+            finally
+            {
+                if (cacheTemporaryPath != null)
+                {
+                    try
+                    {
+                        await RunCacheIO(MetadataCacheIO.DeleteTemporaryDirectory, temporaryPath);
+                        await UnityGame.SwitchToMainThreadAsync();
+                    }
+                    finally
+                    {
+                        cacheTemporaryPath = null;
+                    }
+                }
+            }
+        }
+        finally
+        {
+            cacheSaveGate.Release();
+        }
+    }
+
+    private async Task RunCacheIO(Action<object> action, object state)
+    {
+        var task = Task.Factory.StartNew(action, state, CancellationToken.None,
+            TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
+        cacheFileTask = task;
+        try
+        {
+            await task;
+        }
+        finally
+        {
+            await UnityGame.SwitchToMainThreadAsync();
+            if (ReferenceEquals(cacheFileTask, task)) cacheFileTask = null;
+        }
+    }
+
+    private async Task<T> RunCacheIO<T>(Func<object, T> action, object state, CancellationToken token)
+    {
+        var task = Task.Factory.StartNew(action, state, token,
+            TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
+        cacheFileTask = task;
+        try
+        {
+            return await task;
+        }
+        finally
+        {
+            await UnityGame.SwitchToMainThreadAsync();
+            if (ReferenceEquals(cacheFileTask, task)) cacheFileTask = null;
         }
     }
     
@@ -220,6 +314,8 @@ internal class MetadataLoader : IAsyncInitializable, IDisposable, ISaberMetadata
             token.ThrowIfCancellationRequested();
 
             using var saberData = await sabersLoader.GetSaberData(sabersForCaching[i], false, token);
+            await UnityGame.SwitchToMainThreadAsync();
+            token.ThrowIfCancellationRequested();
 
             loadedSaberMetadata.Add(saberMetadataConverter.CreateJson(saberData.Metadata));
 
@@ -234,42 +330,86 @@ internal class MetadataLoader : IAsyncInitializable, IDisposable, ISaberMetadata
         return loadedSaberMetadata;
     }
 
-    private void UpdateMetadataCache(
-        CacheFileModel updatedLocalCache, SaberFileInfo[] localSaberFiles, HashSet<string> installedSaberHashes)
+    private async Task UpdateMetadataCache(
+        CacheFileModel updatedLocalCache, SaberFileInfo[] localSaberFiles, CancellationToken token)
     {
-        foreach (var saberMetadata in updatedLocalCache.CachedMetadata
-                     .Join(localSaberFiles,
-                         saberMetadata => saberMetadata.Hash,
-                         saberFileInfo => saberFileInfo.Hash,
-                         (meta, file) => (meta, file))
-                     .Where(tuple => installedSaberHashes.Contains(tuple.file.Hash))
-                     .Select(tuple => saberMetadataConverter.ConvertJson(tuple.meta, tuple.file)))
+        await cacheSaveGate.WaitAsync(token);
+        await UnityGame.SwitchToMainThreadAsync();
+        try
         {
-            saberMetadataCache.TryAdd(saberMetadata);
+            token.ThrowIfCancellationRequested();
+            var hashes = localSaberFiles.Select(file => file.Hash).ToArray();
+            var prepared = await RunCacheIO(MetadataCacheIO.PrepareMetadata,
+                (updatedLocalCache.CachedMetadata.ToArray(), hashes, token), token);
+            await UnityGame.SwitchToMainThreadAsync();
+            token.ThrowIfCancellationRequested();
+            foreach (var row in prepared)
+            {
+                var saberMetadata = saberMetadataConverter.ConvertJson(row.Metadata, localSaberFiles[row.FileIndex],
+                    row.SaberName, row.AuthorName);
+                saberMetadataCache.TryAdd(saberMetadata);
+            }
+        }
+        finally
+        {
+            cacheSaveGate.Release();
         }
     }
 
-    private static async Task<Sprite?> LoadSpriteFromCache(ZipArchive cache, SaberMetadataModel meta, CancellationToken token)
+    private async Task<SaberFileInfo[]> GetSabersToLoad(
+        CacheFileModel existingCache, SaberFileInfo[] localSaberFiles, CancellationToken token)
     {
-        var entry = cache.GetEntry($"images/{meta.Hash}.png");
-        if (entry is null) return null;
-        using var ms = new MemoryStream();
-        await using var s = entry.Open();
-        await s.CopyToAsync(ms, token);
-        token.ThrowIfCancellationRequested();
-        return new Texture2D(2, 2).ToSprite(ms.ToArray(), rename: meta.SaberName);
-    }
-
-    private static IEnumerable<SaberFileInfo> GetSabersToLoad(CacheFileModel existingCache, SaberFileInfo[] localSaberFiles)
-    {
-        // the cache shouldn't hold duplicate data for the same saber file in different directories
-        // we use the hash to make sure we only ever have one of any potential duplicate saber files
-        var cachedSaberHashes = existingCache.CachedMetadata.Select(meta => meta.Hash).ToHashSet();
-        return localSaberFiles.Where(file => !cachedSaberHashes.Contains(file.Hash));
+        await cacheSaveGate.WaitAsync(token);
+        await UnityGame.SwitchToMainThreadAsync();
+        try
+        {
+            token.ThrowIfCancellationRequested();
+            var hashes = localSaberFiles.Select(file => file.Hash).ToArray();
+            var indices = await RunCacheIO(MetadataCacheIO.SelectUncachedFiles,
+                (existingCache.CachedMetadata.ToArray(), hashes, token), token);
+            await UnityGame.SwitchToMainThreadAsync();
+            token.ThrowIfCancellationRequested();
+            return indices.Select(index => localSaberFiles[index]).ToArray();
+        }
+        finally
+        {
+            cacheSaveGate.Release();
+        }
     }
 
     public void Dispose()
     {
+        if (disposed) return;
+        disposed = true;
         reloadTokenSource.CancelThenDispose();
+        try
+        {
+            cacheFileTask?.GetAwaiter().GetResult();
+        }
+        catch (Exception error)
+        {
+            Plugin.Log.Warn($"Problem encountered when saving the saber metadata cache\n{error}");
+        }
+        finally
+        {
+            cacheFileTask = null;
+            if (cacheTemporaryPath != null)
+            {
+                try
+                {
+                    Task.Factory.StartNew(MetadataCacheIO.DeleteTemporaryDirectoryIfPresent, cacheTemporaryPath,
+                        CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default)
+                        .GetAwaiter().GetResult();
+                }
+                catch (Exception error)
+                {
+                    Plugin.Log.Warn($"Problem encountered when saving the saber metadata cache\n{error}");
+                }
+                finally
+                {
+                    cacheTemporaryPath = null;
+                }
+            }
+        }
     }
 }

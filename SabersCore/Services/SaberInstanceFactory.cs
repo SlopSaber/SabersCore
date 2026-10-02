@@ -1,15 +1,18 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
+using IPA.Utilities;
 using SabersCore.Models;
 
 namespace SabersCore.Services;
 
-internal class SaberInstanceFactory : ISaberInstanceFactory
+internal class SaberInstanceFactory : ISaberInstanceFactory, IDisposable
 {
     private readonly ISaberMetadataCache saberMetadataCache;
     private readonly ISabersLoader sabersLoader;
     private readonly ITrailFactory trailFactory;
     private readonly GameResourcesProvider gameResourcesProvider;
+    private bool disposed;
 
     public SaberInstanceFactory(
         ISaberMetadataCache saberMetadataCache, 
@@ -25,23 +28,33 @@ internal class SaberInstanceFactory : ISaberInstanceFactory
 
     public async Task<SaberInstanceSet> CreateSaberSet(string? saberHash, CancellationToken token)
     {
+        await UnityGame.SwitchToMainThreadAsync();
+        if (disposed) throw new OperationCanceledException();
         if (!saberMetadataCache.TryGetMetadata(saberHash, out var meta))
         {
             return CreateNewDefaultSaberSet();
         }
 
         var saberData = await sabersLoader.GetSaberData(meta.SaberFile, true, token);
+        await UnityGame.SwitchToMainThreadAsync();
+        if (disposed) throw new OperationCanceledException();
+        token.ThrowIfCancellationRequested();
         return saberData.Prefab?.Instantiate() ?? CreateNewDefaultSaberSet();
     }
 
     public async Task<SaberInstanceSet> ReplaceTrailsWithOther(SaberInstanceSet saberInstance, string? saberHash, CancellationToken token)
     {
+        await UnityGame.SwitchToMainThreadAsync();
+        if (disposed) throw new OperationCanceledException();
         if (!saberMetadataCache.TryGetMetadata(saberHash, out var meta))
         {
             return WithDefaultTrails(saberInstance);
         }
         
         var newSaberData = await sabersLoader.GetSaberData(meta.SaberFile, true, token);
+        await UnityGame.SwitchToMainThreadAsync();
+        if (disposed) throw new OperationCanceledException();
+        token.ThrowIfCancellationRequested();
         if (newSaberData.Prefab is null)
         {
             return WithDefaultTrails(saberInstance);
@@ -51,6 +64,8 @@ internal class SaberInstanceFactory : ISaberInstanceFactory
         var rightTrails = newSaberData.Prefab.GetTrailsForType(SaberType.SaberB);
         return saberInstance.WithTrails(leftTrails, rightTrails);
     }
+
+    public void Dispose() => disposed = true;
 
     private SaberInstanceSet CreateNewDefaultSaberSet() =>
         new(new DefaultSaber(gameResourcesProvider.CreateNewDefaultSaber(), SaberType.SaberA),

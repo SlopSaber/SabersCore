@@ -1,9 +1,10 @@
 ﻿using System;
-using System.IO;
-using System.IO.Compression;
 using System.Linq;
+using System.Runtime.ExceptionServices;
+using System.Threading;
 using System.Threading.Tasks;
 using AssetComponents.Models;
+using IPA.Utilities;
 using SabersCore.Models;
 using SabersCore.Utilities.Common;
 using SabersCore.Utilities.Extensions;
@@ -12,9 +13,13 @@ using Object = UnityEngine.Object;
 
 namespace SabersCore.Services;
 
-internal class Saber2Loader
+internal class Saber2Loader : IDisposable
 {
     private readonly SpriteCache spriteCache;
+    private readonly CancellationTokenSource lifetime = new();
+    private readonly SemaphoreSlim archiveGate = new(1, 1);
+    private Task<SaberArchiveIO.ReadResult>? archiveReadTask;
+    private bool disposed;
 
     public Saber2Loader(SpriteCache spriteCache)
     {
@@ -26,50 +31,62 @@ internal class Saber2Loader
     /// </summary>
     public async Task<ISaberData> LoadSaber2Async(SaberFileInfo saberFile)
     {
+        await UnityGame.SwitchToMainThreadAsync();
+        if (disposed) throw new OperationCanceledException();
+        var token = lifetime.Token;
         AssetBundle? bundle = null;
         GameObject? saberPrefab = null;
+        SaberArchiveIO.ReadResult? read = null;
 
         try
         {
-            if (!saberFile.FileInfo.Exists)
+            await archiveGate.WaitAsync(token);
+            await UnityGame.SwitchToMainThreadAsync();
+            try
+            {
+                token.ThrowIfCancellationRequested();
+                archiveReadTask = Task.Factory.StartNew(SaberArchiveIO.Read, (saberFile.FileInfo.FullName, token),
+                    token, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
+                read = await archiveReadTask;
+                await UnityGame.SwitchToMainThreadAsync();
+            }
+            finally
+            {
+                await UnityGame.SwitchToMainThreadAsync();
+                archiveReadTask = null;
+                archiveGate.Release();
+            }
+            token.ThrowIfCancellationRequested();
+            if (!read.FileExists)
             {
                 return new NoSaberData(saberFile, SaberLoaderError.FileNotFound);
             }
 
             Plugin.Log.Debug($"Attempting to load saber2 file - {saberFile.FileInfo.Name}");
 
-            await using var fileStream = saberFile.FileInfo.OpenRead();
-            using var archive = new ZipArchive(fileStream, ZipArchiveMode.Read);
-
-            var jsonEntry = archive.GetEntry("metadata.json");
-
-            if (jsonEntry is null)
+            if (read.ReadError != null) ExceptionDispatchInfo.Capture(read.ReadError).Throw();
+            if (read.Error != SaberLoaderError.None)
             {
-                return new NoSaberData(saberFile, SaberLoaderError.FileNotFound);
+                return new NoSaberData(saberFile, read.Error);
             }
 
-            await using var jsonStream = jsonEntry.Open();
-            var saber2 = jsonStream.DeserializeStream<Saber2Model>();
-            if (saber2 is null || !saber2.Assets.TryGetValue(AssetPlatform.PC, out var assetMetadata))
-            {
-                return new NoSaberData(saberFile, SaberLoaderError.FileNotFound);
-            }
-
-            var bundleEntry = archive.GetEntry(assetMetadata.FilePath);
-            if (bundleEntry is null)
-            {
-                return new NoSaberData(saberFile, SaberLoaderError.FileNotFound);
-            }
-
-            await using var bundleStream = bundleEntry.Open();
-            bundle = await BundleLoading.LoadBundle(bundleStream);
+            var saber2 = read.Model!;
+            bundle = await BundleLoading.LoadBundle(read.Bundle!);
+            read.Bundle = null;
+            await UnityGame.SwitchToMainThreadAsync();
+            token.ThrowIfCancellationRequested();
             if (bundle == null)
             {
                 return new NoSaberData(saberFile, SaberLoaderError.NullBundle);
             }
 
-            saberPrefab = await BundleLoading.LoadAsset<GameObject>(bundle, "_CustomSaber")
-                          ?? await BundleLoading.LoadAsset<GameObject>(bundle, AssetBundleDefinition.SaberAssetName);
+            saberPrefab = await BundleLoading.LoadAsset<GameObject>(bundle, "_CustomSaber");
+            await UnityGame.SwitchToMainThreadAsync();
+            token.ThrowIfCancellationRequested();
+            if (saberPrefab == null)
+                saberPrefab = await BundleLoading.LoadAsset<GameObject>(bundle, AssetBundleDefinition.SaberAssetName);
+            await UnityGame.SwitchToMainThreadAsync();
+            token.ThrowIfCancellationRequested();
             if (saberPrefab == null)
             {
                 bundle.Unload(true);
@@ -79,7 +96,9 @@ internal class Saber2Loader
             saberPrefab.hideFlags |= HideFlags.DontUnloadUnusedAsset;
             saberPrefab.name += $" {saber2.ModelName}";
 
-            var icon = await GetDownscaledIcon(archive, saber2);
+            if (read.IconError != null) ExceptionDispatchInfo.Capture(read.IconError).Throw();
+            var icon = GetDownscaledIcon(read.Icon, saber2.ModelName);
+            read.Icon = null;
             spriteCache.AddSprite(saberFile.Hash, icon);
 
             var saberName = RichTextString.Create(saber2.ModelName);
@@ -93,30 +112,45 @@ internal class Saber2Loader
         }
         catch (Exception ex)
         {
+            await UnityGame.SwitchToMainThreadAsync();
             if (bundle != null) bundle.Unload(true);
+            if (disposed) throw new OperationCanceledException();
             Plugin.Log.Error($"Encountered a problem while trying to load file - {saberFile.FileInfo.Name}\n{ex}");
             return new NoSaberData(saberFile, SaberLoaderError.Unknown);
         }
         finally
         {
+            if (read != null)
+            {
+                read.Bundle = null;
+                read.Icon = null;
+            }
+            await UnityGame.SwitchToMainThreadAsync();
             if (saberPrefab != null) saberPrefab.hideFlags &= ~HideFlags.DontUnloadUnusedAsset;
             if (bundle != null) bundle.Unload(false);
         }
     }
 
-    private static async Task<Sprite?> GetDownscaledIcon(ZipArchive archive, Saber2Model saber2)
+    public void Dispose()
     {
-        if (string.IsNullOrEmpty(saber2.IconPath)) return null;
-        
-        var iconEntry = archive.GetEntry(saber2.IconPath);
-        if (iconEntry is null) return null;
+        if (disposed) return;
+        disposed = true;
+        lifetime.Cancel();
+        try
+        {
+            archiveReadTask?.GetAwaiter().GetResult();
+        }
+        catch (OperationCanceledException) { }
+        finally
+        {
+            lifetime.Dispose();
+        }
+    }
 
-        using var memoryStream = new MemoryStream();
-        await using var thumbStream = iconEntry.Open();
-        
-        await thumbStream.CopyToAsync(memoryStream);
-        
-        var icon = new Texture2D(2, 2).ToSprite(memoryStream.ToArray());
+    private static Sprite? GetDownscaledIcon(byte[]? image, string name)
+    {
+        if (image == null) return null;
+        var icon = new Texture2D(2, 2).ToSprite(image);
         if (icon == null)
         {
             return null;
@@ -126,7 +160,7 @@ internal class Saber2Loader
             Object.Destroy(icon);
             return null;
         }
-        var downscaledIcon = icon.texture.Downscale(128, 128).ToSprite(rename: saber2.ModelName);
+        var downscaledIcon = icon.texture.Downscale(128, 128).ToSprite(rename: name);
         Object.Destroy(icon);
         return downscaledIcon;
     }

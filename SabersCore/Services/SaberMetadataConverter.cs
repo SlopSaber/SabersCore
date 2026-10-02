@@ -12,10 +12,12 @@ internal class SaberMetadataConverter
         this.spriteCache = spriteCache;
     }
 
-    public CustomSaberMetadata ConvertJson(SaberMetadataModel meta, SaberFileInfo saberFileInfo)
+    public CustomSaberMetadata ConvertJson(SaberMetadataModel meta, SaberFileInfo saberFileInfo) =>
+        ConvertJson(meta, saberFileInfo, RichTextString.Create(meta.SaberName), RichTextString.Create(meta.AuthorName));
+
+    public CustomSaberMetadata ConvertJson(SaberMetadataModel meta, SaberFileInfo saberFileInfo,
+        RichTextString saberName, RichTextString authorName)
     {
-        var saberName = RichTextString.Create(meta.SaberName);
-        var authorName = RichTextString.Create(meta.AuthorName);
         var icon = spriteCache.GetSprite(meta.Hash);
         if (icon == null) icon = PluginResources.NullCoverImage;
         var descriptor = new Descriptor(saberName, authorName, icon);
