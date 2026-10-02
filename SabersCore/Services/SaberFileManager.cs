@@ -11,7 +11,7 @@ using SabersCore.Utilities.Common;
 
 namespace SabersCore.Services;
 
-internal class SaberFileManager : ISaberFileManager
+internal class SaberFileManager : ISaberFileManager, ISaberDirectoryReadiness
 {
     private readonly DirectoryManager directoryManager;
 
@@ -25,8 +25,17 @@ internal class SaberFileManager : ISaberFileManager
     public SaberFileInfo[] GetLoadedSaberFiles() =>
         loadedFiles;
     
-    public async Task<SaberFileInfo[]> ReloadAllSaberFiles(CancellationToken token, IProgress<int> progress) => 
-        await Task.Run(() => GetDistinctSaberFiles(token, progress), token);
+    public Task WaitForDirectoriesAsync(CancellationToken token) =>
+        directoryManager.InitializeAsync(token);
+
+    public Task EnsureDirectoriesAsync(string[] paths, CancellationToken token) =>
+        directoryManager.EnsureDirectoriesAsync(paths, token);
+
+    public async Task<SaberFileInfo[]> ReloadAllSaberFiles(CancellationToken token, IProgress<int> progress)
+    {
+        await WaitForDirectoriesAsync(token);
+        return await Task.Run(() => GetDistinctSaberFiles(token, progress), token);
+    }
     
     private SaberFileInfo[] GetDistinctSaberFiles(CancellationToken token, IProgress<int> progress)
     {

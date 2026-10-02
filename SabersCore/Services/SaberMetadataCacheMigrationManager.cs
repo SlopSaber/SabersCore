@@ -14,7 +14,7 @@ internal class SaberMetadataCacheMigrationManager
     public SaberMetadataCacheMigrationManager(DirectoryManager directoryManager)
     {
         cacheFile = new(Path.Combine(directoryManager.UserData.FullName, "cache"));
-        MigrationTask = Task.Run(Migrate);
+        MigrationTask = MigrateAsync(directoryManager.Ready);
     }
     
     /// <summary>
@@ -22,6 +22,12 @@ internal class SaberMetadataCacheMigrationManager
     /// The cache file may not exist after migration, make sure to check it exists after migration.
     /// </summary>
     public Task<bool> MigrationTask { get; }
+
+    private async Task<bool> MigrateAsync(Task readiness)
+    {
+        await readiness.ConfigureAwait(false);
+        return await Task.Run(Migrate).ConfigureAwait(false);
+    }
 
     private bool Migrate()
     {
