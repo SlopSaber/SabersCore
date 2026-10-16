@@ -1,11 +1,12 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project>
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
 
     <Import Project="$(MSBuildProjectFullPath).user" Condition="Exists('$(MSBuildProjectFullPath).user')"/>
 
     <PropertyGroup>
     <ImportBSMTTargets>true</ImportBSMTTargets>
     <BSMTProjectType>BSIPA</BSMTProjectType>
-    <GameDirectory>D:\BSManager\BSInstances\1.45.2</GameDirectory>
+    <GameDirectory>D:\BSManager\BSInstances\1.45.3</GameDirectory>
     <AssetComponentsReferencePath Condition="'$(AssetComponentsReferencePath)' == ''">$(GameDirectory)\Libs\AssetComponents.dll</AssetComponentsReferencePath>
     <SaberComponentsReferencePath Condition="'$(SaberComponentsReferencePath)' == ''">$(GameDirectory)\Libs\SaberComponents.dll</SaberComponentsReferencePath>
     <CopyPDB>false</CopyPDB>
@@ -157,4 +158,6 @@
         </Reference>
     </ItemGroup>
 
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+  <Import Project="..\BSIPA.Layout.targets" Condition="Exists('$(GameDirectory)\IPA\Data\Managed\IPA.Loader.dll') OR Exists('$(BeatSaberDir)\IPA\Data\Managed\IPA.Loader.dll')" />
 </Project>
