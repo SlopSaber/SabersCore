@@ -2,6 +2,7 @@
 using SabersCore.Components;
 using SabersCore.Models;
 using SabersCore.Utilities.Extensions;
+using UnityEngine;
 
 namespace SabersCore.Utilities.Common;
 
@@ -24,6 +25,22 @@ public static class TrailUtils
     /// <returns>Trail duration in seconds</returns>
     public static float ConvertLegacyLength(int customTrailLength) =>
         customTrailLength / (float)LegacyDuration * DefaultDuration;
+
+    /// <summary>
+    /// Scales the original trail span about its blade-tip endpoint without changing endpoint order.
+    /// </summary>
+    public static void ApplyWidthMultiplier(ITrailData trailData, float multiplier, ref Vector3 top, ref Vector3 bottom)
+    {
+        // Choose the tip in saber-local space so swinging cannot change the fixed endpoint.
+        if (trailData.TrailTopOffset.z >= trailData.TrailBottomOffset.z)
+        {
+            bottom = Vector3.LerpUnclamped(top, bottom, multiplier);
+        }
+        else
+        {
+            top = Vector3.LerpUnclamped(bottom, top, multiplier);
+        }
+    }
 
     /// <summary>
     /// Configures a collection of trails. The first trail in the sequence will be enabled for overriding width, any

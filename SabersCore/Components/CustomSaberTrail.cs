@@ -97,20 +97,16 @@ public class CustomSaberTrail : SaberTrail
 
         var topPos = trailTop.position;
         var bottomPos = trailBottom.position;
+
+        if (UseWidthOverride)
+        {
+            TrailUtils.ApplyWidthMultiplier(trailData, OverrideWidth, ref topPos, ref bottomPos);
+        }
         
         customTrailMovementData.AddNewData(
             topPos,
-            UseWidthOverride ? GetOverrideWidthBottom(OverrideWidth) : bottomPos,
+            bottomPos,
             timeHelper.Time);
-
-        return;
-        
-        Vector3 GetOverrideWidthBottom(float trailWidth)
-        {
-            float distance = Vector3.Distance(topPos, bottomPos);
-            return distance.Approximately(0) ? bottomPos 
-                : Vector3.LerpUnclamped(topPos, bottomPos, trailWidth / distance);
-        }
     }
     
     public record InitData(Transform TrailTop, Transform TrailBottom, ITrailData TrailData);
