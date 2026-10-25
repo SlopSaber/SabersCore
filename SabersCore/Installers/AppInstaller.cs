@@ -15,6 +15,7 @@ internal class AppInstaller : Installer
         Container.BindInterfacesTo<SaberFileManager>().AsSingle();
         Container.BindInterfacesTo<MetadataLoader>().AsSingle();
         Container.BindInterfacesTo<TrailFactory>().AsSingle();
+        Container.BindInterfacesAndSelfTo<CustomTrailUvMapping>().AsSingle();
         
         // Internals
         Container.BindInterfacesAndSelfTo<GameResourcesProvider>().AsSingle();

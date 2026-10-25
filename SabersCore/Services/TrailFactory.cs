@@ -10,11 +10,13 @@ internal class TrailFactory : ITrailFactory
 {
     private readonly GameResourcesProvider gameResourcesProvider;
     private readonly DiContainer container;
+    private readonly CustomTrailUvMapping customTrailUvMapping;
     
-    public TrailFactory(GameResourcesProvider gameResourcesProvider, DiContainer container)
+    public TrailFactory(GameResourcesProvider gameResourcesProvider, DiContainer container, CustomTrailUvMapping customTrailUvMapping)
     {
         this.gameResourcesProvider = gameResourcesProvider;
         this.container = container;
+        this.customTrailUvMapping = customTrailUvMapping;
     }
 
     private const int DefaultSamplingFrequency = 120;
@@ -57,6 +59,10 @@ internal class TrailFactory : ITrailFactory
         trail._granularity = DefaultGranularity;
         trail._color = baseColor;
         trail._trailRenderer = gameResourcesProvider.CreateNewSaberTrailRenderer();
+        if (trailData is not DefaultTrailData && trailData.Material != null)
+        {
+            customTrailUvMapping.Register(trail._trailRenderer);
+        }
         if (trailData.Material != null)
         {
             trail._trailRenderer._meshRenderer.material = trailData.Material;
