@@ -29,6 +29,10 @@ internal class CustomSaberPrefab : ISaberPrefab
 
     public void Dispose()
     {
-        if (prefab != null) prefab.Destroy();
+        if (prefab == null) return;
+        // Bundle-loaded prefabs are assets (no scene). The player lets Destroy free them,
+        // but the Unity Editor refuses ("Destroying assets is not permitted").
+        if (prefab.scene.IsValid()) prefab.Destroy();
+        else Object.DestroyImmediate(prefab, true);
     }
 }
