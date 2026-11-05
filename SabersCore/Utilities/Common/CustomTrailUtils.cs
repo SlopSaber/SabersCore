@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using SaberComponents.Components;
+using SabersCore.Components;
 using SabersCore.Models;
 using UnityEngine;
 
@@ -24,6 +25,7 @@ public static class CustomTrailUtils
             customColor: trail.trailColor,
             colorMultiplier: trail.multiplierColor,
             trailTopOffset: trail.top.position - saberObject.transform.position,
-            trailBottomOffset: trail.bottom.position - saberObject.transform.position))
+            trailBottomOffset: trail.bottom.position - saberObject.transform.position,
+            usesNativeUvDirection: trail.GetComponent<LegacyCustomTrail>() != null))
         .ToArray<ITrailData>();
 }

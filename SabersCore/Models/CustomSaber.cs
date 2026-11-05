@@ -2,6 +2,7 @@
 using System.Linq;
 using SaberComponents.Components;
 using SaberComponents.Models;
+using SabersCore.Components;
 using SabersCore.Utilities.Extensions;
 using UnityEngine;
 
@@ -39,6 +40,7 @@ internal class CustomSaber : ISaber
         {
             var color = colorScheme.GetColorByType(colorer.colorSchemeType);
             if (ApplyDirectSaberColor(colorer, color)) continue;
+            if (ApplyLegacyTargets(colorer, color)) continue;
             colorer.materialPropertyBlock ??= new();
             colorer.meshRenderer.GetPropertyBlock(colorer.materialPropertyBlock);
             colorer.materialPropertyBlock.SetColor(colorer.propertyName, color * colorer.multiplierColor);
@@ -81,12 +83,27 @@ internal class CustomSaber : ISaber
                 || (saberType == SaberType.SaberB && colorer.colorSchemeType == ColorSchemeType.RightSaber))
             {
                 if (ApplyDirectSaberColor(colorer, color)) continue;
+                if (ApplyLegacyTargets(colorer, color)) continue;
                 colorer.materialPropertyBlock.SetColor(colorer.propertyName, color * colorer.multiplierColor);
                 if (ownedMaterials.Length > 0 && colorer.propertyName == "_Color")
                     colorer.materialPropertyBlock.SetColor("_RimLightColor", color);
                 colorer.meshRenderer.SetPropertyBlock(colorer.materialPropertyBlock);
             }
         }
+    }
+
+    private static bool ApplyLegacyTargets(MaterialColorer colorer, Color color)
+    {
+        var targets = colorer.GetComponent<LegacyColorTargets>();
+        if (targets == null) return false;
+        colorer.materialPropertyBlock ??= new();
+        foreach (var index in targets.materialIndices)
+        {
+            colorer.meshRenderer.GetPropertyBlock(colorer.materialPropertyBlock, index);
+            colorer.materialPropertyBlock.SetColor(colorer.propertyName, color * colorer.multiplierColor);
+            colorer.meshRenderer.SetPropertyBlock(colorer.materialPropertyBlock, index);
+        }
+        return true;
     }
 
     private static bool ApplyDirectSaberColor(MaterialColorer colorer, Color color)

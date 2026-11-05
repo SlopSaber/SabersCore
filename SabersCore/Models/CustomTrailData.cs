@@ -14,7 +14,8 @@ internal class CustomTrailData : ITrailData
         Color customColor,
         Color colorMultiplier,
         Vector3 trailTopOffset,
-        Vector3 trailBottomOffset)
+        Vector3 trailBottomOffset,
+        bool usesNativeUvDirection = false)
     {
         Material = material;
         Materials = material is null ? [] : [material];
@@ -26,6 +27,7 @@ internal class CustomTrailData : ITrailData
         ColorMultiplier = colorMultiplier;
         TrailTopOffset = trailTopOffset;
         TrailBottomOffset = trailBottomOffset;
+        UsesNativeUvDirection = usesNativeUvDirection;
         Colorizer = new LegacyTrailColorizer(this);
     }
 
@@ -43,4 +45,5 @@ internal class CustomTrailData : ITrailData
     public Color CustomColor { get; }
     public Color ColorMultiplier { get; }
     public ITrailColorizer Colorizer { get; }
+    public bool UsesNativeUvDirection { get; }
 }

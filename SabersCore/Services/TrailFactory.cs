@@ -59,7 +59,7 @@ internal class TrailFactory : ITrailFactory
         trail._granularity = DefaultGranularity;
         trail._color = baseColor;
         trail._trailRenderer = gameResourcesProvider.CreateNewSaberTrailRenderer();
-        if (trailData is not DefaultTrailData && trailData.Material != null)
+        if (!trailData.UsesNativeUvDirection && trailData.Material != null)
         {
             customTrailUvMapping.Register(trail._trailRenderer);
         }

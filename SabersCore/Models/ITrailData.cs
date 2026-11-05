@@ -22,4 +22,9 @@ public interface ITrailData
     public Color CustomColor { get; }
     public Color ColorMultiplier { get; }
     public ITrailColorizer Colorizer { get; }
+
+    /// <summary>
+    /// Whether the material expects the game's trail UVs, where V is 0 at the blade.
+    /// </summary>
+    public bool UsesNativeUvDirection { get; }
 }

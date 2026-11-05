@@ -28,4 +28,5 @@ public class DefaultTrailData : ITrailData
     public Color CustomColor => Color.white;
     public Color ColorMultiplier => Color.white; 
     public ITrailColorizer Colorizer { get; }
+    public bool UsesNativeUvDirection => true;
 }
