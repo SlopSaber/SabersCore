@@ -7,7 +7,7 @@ namespace SabersCore.Utilities.Common;
 internal static class DirectoryInfoExtensions
 {
     private static string[] SaberFileTypes => [
-        // "saber",
+        "saber",
         // "whacker"
         "saber2"
     ];

@@ -78,6 +78,7 @@ internal class Saber2Loader
 
             saberPrefab.hideFlags |= HideFlags.DontUnloadUnusedAsset;
             saberPrefab.name += $" {saber2.ModelName}";
+            AssetBundleLoadingTools.Rendering.LegacyRendering.Register(saberPrefab);
 
             var icon = await GetDownscaledIcon(archive, saber2);
             spriteCache.AddSprite(saberFile.Hash, icon);

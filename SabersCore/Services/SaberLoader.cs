@@ -9,7 +9,6 @@ using UnityEngine;
 
 namespace SabersCore.Services;
 
-[Obsolete(".saber files are no longer supported as of Beat Saber 1.44.2")]
 internal class SaberLoader
 {
     private readonly SpriteCache spriteCache;
@@ -51,6 +50,7 @@ internal class SaberLoader
                 return new NoSaberData(saberFile, SaberLoaderError.NullAsset);
             }
 
+            AssetBundleLoadingTools.Rendering.LegacyRendering.Register(saberPrefab);
             var saberDescriptor = saberPrefab.GetComponent<SaberDescriptor>();
             saberPrefab.hideFlags |= HideFlags.DontUnloadUnusedAsset;
             saberPrefab.name += $" {saberDescriptor.SaberName}";
