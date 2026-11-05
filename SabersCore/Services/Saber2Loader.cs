@@ -95,6 +95,7 @@ internal class Saber2Loader
         catch (Exception ex)
         {
             if (bundle != null) bundle.Unload(true);
+            bundle = null;
             Plugin.Log.Error($"Encountered a problem while trying to load file - {saberFile.FileInfo.Name}\n{ex}");
             return new NoSaberData(saberFile, SaberLoaderError.Unknown);
         }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using SaberComponents.Components;
@@ -35,6 +36,7 @@ internal class SaberLoader
 
             Plugin.Log.Debug($"Attempting to load saber file - {saberFile.FileInfo.Name}");
 
+            LegacySaberConverter.EnsureLoaded();
             bundle = await BundleLoading.LoadBundle(saberFile.FileInfo.FullName);
 
             if (bundle == null)
@@ -50,21 +52,24 @@ internal class SaberLoader
                 return new NoSaberData(saberFile, SaberLoaderError.NullAsset);
             }
 
+            LegacySaberConverter.Convert(saberPrefab);
             AssetBundleLoadingTools.Rendering.LegacyRendering.Register(saberPrefab);
             var saberDescriptor = saberPrefab.GetComponent<SaberDescriptor>();
+            var displayName = saberDescriptor != null ? saberDescriptor.SaberName : Path.GetFileNameWithoutExtension(saberFile.FileInfo.Name);
+            var author = saberDescriptor != null ? saberDescriptor.AuthorName : string.Empty;
             saberPrefab.hideFlags |= HideFlags.DontUnloadUnusedAsset;
-            saberPrefab.name += $" {saberDescriptor.SaberName}";
+            saberPrefab.name += $" {displayName}";
 
             Sprite? icon = null;
-            if (saberDescriptor.CoverImage != null)
+            if (saberDescriptor != null && saberDescriptor.CoverImage != null)
             {
-                icon = saberDescriptor.CoverImage.DuplicateTexture().Downscale(128, 128).ToSprite(rename: saberDescriptor.SaberName);
+                icon = saberDescriptor.CoverImage.DuplicateTexture().Downscale(128, 128).ToSprite(rename: displayName);
             }
 
             spriteCache.AddSprite(saberFile.Hash, icon);
 
-            var saberName = RichTextString.Create(saberDescriptor.SaberName);
-            var authorName = RichTextString.Create(saberDescriptor.AuthorName);
+            var saberName = RichTextString.Create(displayName);
+            var authorName = RichTextString.Create(author);
             var saberIcon = icon != null ? icon : PluginResources.NullCoverImage;
             var descriptor = new Descriptor(saberName, authorName, saberIcon);
             var hasTrails = CustomTrailUtils.GetTrailsFromCustomSaber(saberPrefab).Any();
@@ -75,8 +80,9 @@ internal class SaberLoader
         catch (Exception ex)
         {
             if (bundle != null) bundle.Unload(true);
+            bundle = null;
             Plugin.Log.Error($"Encountered a problem while trying to load file - {saberFile.FileInfo.Name}\n{ex}");
-            throw;
+            return new NoSaberData(saberFile, SaberLoaderError.Unknown);
         }
         finally
         {

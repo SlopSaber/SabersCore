@@ -106,6 +106,15 @@
             <HintPath>$(SaberComponentsReferencePath)</HintPath>
             <Private>false</Private>
         </Reference>
+        <Reference Include="UnityEngine.JSONSerializeModule">
+            <HintPath>$(GameDirectory)\Beat Saber_Data\Managed\UnityEngine.JSONSerializeModule.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="CustomSaber">
+            <HintPath>Libs\CustomSaber.dll</HintPath>
+            <Aliases>LegacyCustomSaber</Aliases>
+            <Private>false</Private>
+        </Reference>
         <Reference Include="AssetComponents">
             <HintPath>$(AssetComponentsReferencePath)</HintPath>
             <Private>false</Private>
