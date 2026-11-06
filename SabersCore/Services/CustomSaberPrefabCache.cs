@@ -9,8 +9,12 @@ internal class CustomSaberPrefabCache : IDisposable, IPrefabCache
 {
     private readonly Dictionary<string, CustomSaberData> cache = [];
 
-    public bool AddPrefab(ISaberData saberData) =>
-        saberData is CustomSaberData x && cache.TryAdd(x.Metadata.SaberFile.Hash, x);
+    public bool AddPrefab(ISaberData saberData)
+    {
+        if (saberData is not CustomSaberData x || !cache.TryAdd(x.Metadata.SaberFile.Hash, x)) return false;
+        x.IsCached = true;
+        return true;
+    }
 
     public bool TryGetPrefab(string saberHash, [NotNullWhen(true)] out ISaberData? saberData)
     {
@@ -26,8 +30,8 @@ internal class CustomSaberPrefabCache : IDisposable, IPrefabCache
     public void UnloadPrefab(string saberHash)
     {
         if (!cache.TryGetValue(saberHash, out var saberData)) return;
-        saberData.Dispose();
         cache.Remove(saberHash);
+        Release(saberData);
     }
 
     public void Dispose()
@@ -38,7 +42,13 @@ internal class CustomSaberPrefabCache : IDisposable, IPrefabCache
     public void Clear()
     {
         if (cache.Count == 0) return;
-        foreach (var customSaberData in cache.Values) customSaberData.Dispose();
+        foreach (var customSaberData in cache.Values) Release(customSaberData);
         cache.Clear();
+    }
+
+    private static void Release(CustomSaberData saberData)
+    {
+        saberData.IsCached = false;
+        saberData.Dispose();
     }
 }

@@ -25,6 +25,8 @@ internal class CustomSabersLoader : ISabersLoader
     }
 
     private readonly Dictionary<SaberFileInfo, Task<ISaberData>> runningTasks = [];
+    private readonly HashSet<SaberFileInfo> keepRequested = [];
+    private readonly HashSet<SaberFileInfo> sharedLoads = [];
 
     public async Task<ISaberData> GetSaberData(SaberFileInfo saberFile, bool keepSaberInstance, CancellationToken token)
     {
@@ -35,25 +37,24 @@ internal class CustomSabersLoader : ISabersLoader
         
         if (runningTasks.TryGetValue(saberFile, out var task))
         {
+            sharedLoads.Add(saberFile);
+            if (keepSaberInstance) keepRequested.Add(saberFile);
             return await task;
         }
 
         try
         {
-            var loadSaberDataTask = LoadSaberDataAsync(saberFile);
+            if (keepSaberInstance) keepRequested.Add(saberFile);
+            var loadSaberDataTask = LoadAndCacheAsync(saberFile);
             runningTasks.Add(saberFile, loadSaberDataTask);
 
             var saberData = await loadSaberDataTask;
 
             if (token.IsCancellationRequested)
             {
-                saberData.Dispose();
+                // Another caller may still be using a shared load.
+                if (!sharedLoads.Contains(saberFile)) saberData.Dispose();
                 throw new OperationCanceledException();
-            }
-
-            if (keepSaberInstance)
-            {
-                prefabCache.AddPrefab(saberData);
             }
 
             return saberData;
@@ -65,6 +66,22 @@ internal class CustomSabersLoader : ISabersLoader
         finally
         {
             runningTasks.Remove(saberFile);
+            sharedLoads.Remove(saberFile);
+        }
+    }
+
+    // Caches before any awaiting caller resumes, so no caller can dispose data another caller keeps.
+    private async Task<ISaberData> LoadAndCacheAsync(SaberFileInfo saberFile)
+    {
+        try
+        {
+            var saberData = await LoadSaberDataAsync(saberFile);
+            if (keepRequested.Contains(saberFile)) prefabCache.AddPrefab(saberData);
+            return saberData;
+        }
+        finally
+        {
+            keepRequested.Remove(saberFile);
         }
     }
 
